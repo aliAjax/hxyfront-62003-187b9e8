@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import "./styles.css";
 import BatchForm from "./BatchForm";
 import BatchList from "./BatchList";
@@ -95,6 +95,19 @@ function App() {
   const [selectedSampleId, setSelectedSampleId] = useState<string | null>(null);
   const [selectedCaseForTimeline, setSelectedCaseForTimeline] = useState<string>("CASE-042");
   const [timelineMockSamples, setTimelineMockSamples] = useState<Sample[]>([]);
+
+  const dirtyCheckerRef = useRef<() => boolean>(() => false);
+
+  const registerDirtyChecker = useCallback((checker: () => boolean) => {
+    dirtyCheckerRef.current = checker;
+  }, []);
+
+  const confirmDiscardBeforeNavigate = (): boolean => {
+    if (viewMode !== "detail") return true;
+    const isDirty = dirtyCheckerRef.current();
+    if (!isDirty) return true;
+    return window.confirm("您有未保存的修改，确定要离开当前页面吗？未保存的内容将丢失。");
+  };
 
   useEffect(() => {
     const loadedBatches = loadBatches();
@@ -239,6 +252,7 @@ function App() {
   }, [samples, isLoaded]);
 
   const handleViewDetail = (sampleId: string) => {
+    if (!confirmDiscardBeforeNavigate()) return;
     setPreviousViewMode(viewMode);
     setSelectedSampleId(sampleId);
     setViewMode("detail");
@@ -266,6 +280,7 @@ function App() {
   };
 
   const handleOpenFilter = () => {
+    if (!confirmDiscardBeforeNavigate()) return;
     setViewMode("filter");
   };
 
@@ -274,6 +289,7 @@ function App() {
   };
 
   const handleOpenAssociation = () => {
+    if (!confirmDiscardBeforeNavigate()) return;
     setViewMode("association");
   };
 
@@ -290,6 +306,7 @@ function App() {
   };
 
   const handleOpenQueue = () => {
+    if (!confirmDiscardBeforeNavigate()) return;
     setViewMode("queue");
   };
 
@@ -306,6 +323,7 @@ function App() {
   };
 
   const handleOpenWizard = () => {
+    if (!confirmDiscardBeforeNavigate()) return;
     setPreviousViewMode(viewMode);
     setViewMode("wizard");
   };
@@ -320,6 +338,7 @@ function App() {
   };
 
   const handleOpenExport = () => {
+    if (!confirmDiscardBeforeNavigate()) return;
     setViewMode("export");
   };
 
@@ -328,6 +347,7 @@ function App() {
   };
 
   const handleOpenOffline = () => {
+    if (!confirmDiscardBeforeNavigate()) return;
     setViewMode("offline");
   };
 
@@ -336,6 +356,7 @@ function App() {
   };
 
   const handleOpenTimeline = (caseNumber?: string) => {
+    if (!confirmDiscardBeforeNavigate()) return;
     if (caseNumber) {
       setSelectedCaseForTimeline(caseNumber);
     }
@@ -407,6 +428,7 @@ function App() {
           allSamples={samples}
           onBack={handleBackFromDetail}
           onSave={handleSaveSample}
+          registerDirtyChecker={registerDirtyChecker}
         />
       </main>
     );

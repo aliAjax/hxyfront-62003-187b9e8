@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Sample,
   TemperatureRecord,
@@ -21,21 +21,56 @@ interface SampleDetailProps {
   allSamples: Sample[];
   onBack: () => void;
   onSave: (updatedSample: Sample) => void;
+  registerDirtyChecker?: (checker: () => boolean) => void;
 }
 
-export default function SampleDetail({ sample, allSamples, onBack, onSave }: SampleDetailProps) {
+function deepEqualSample(a: Sample, b: Sample): boolean {
+  if (a === b) return true;
+  const keys = Object.keys(a) as (keyof Sample)[];
+  for (const k of keys) {
+    const va = a[k];
+    const vb = b[k];
+    if (Array.isArray(va) && Array.isArray(vb)) {
+      if (va.length !== vb.length) return false;
+      for (let i = 0; i < va.length; i++) {
+        const xa = va[i];
+        const xb = vb[i];
+        if (typeof xa === "object" && typeof xb === "object" && xa !== null && xb !== null) {
+          const oa = xa as Record<string, unknown>;
+          const ob = xb as Record<string, unknown>;
+          const allKeys = new Set([...Object.keys(oa), ...Object.keys(ob)]);
+          for (const ok of allKeys) {
+            if (JSON.stringify(oa[ok]) !== JSON.stringify(ob[ok])) return false;
+          }
+        } else if (xa !== xb) {
+          return false;
+        }
+      }
+    } else if (va !== vb) {
+      return false;
+    }
+  }
+  return true;
+}
+
+export default function SampleDetail({ sample, allSamples, onBack, onSave, registerDirtyChecker }: SampleDetailProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Sample>(sample);
   const [hasChanges, setHasChanges] = useState(false);
+  const [lastSavedSnapshot, setLastSavedSnapshot] = useState<Sample>(sample);
   const [newTempValue, setNewTempValue] = useState("");
   const [newTempTime, setNewTempTime] = useState("");
   const [newTempNote, setNewTempNote] = useState("");
   const [tempWarning, setTempWarning] = useState("");
   const [tempSavedFeedback, setTempSavedFeedback] = useState("");
 
+  const hasUnsavedChanges = useRef(false);
+
   useEffect(() => {
     setFormData(sample);
     setHasChanges(false);
+    setLastSavedSnapshot(sample);
+    setIsEditing(false);
   }, [sample]);
 
   useEffect(() => {
@@ -46,8 +81,44 @@ export default function SampleDetail({ sample, allSamples, onBack, onSave }: Sam
     setHasChanges(changed);
   }, [formData, sample]);
 
+  useEffect(() => {
+    const unsaved = isEditing && !deepEqualSample(formData, lastSavedSnapshot);
+    hasUnsavedChanges.current = unsaved;
+  }, [isEditing, formData, lastSavedSnapshot]);
+
+  useEffect(() => {
+    if (registerDirtyChecker) {
+      registerDirtyChecker(() => hasUnsavedChanges.current);
+    }
+    return () => {
+      if (registerDirtyChecker) {
+        registerDirtyChecker(() => false);
+      }
+    };
+  }, [registerDirtyChecker]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges.current) {
+        e.preventDefault();
+        e.returnValue = "";
+        return "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
+
+  const confirmDiscard = (message = "您有未保存的修改，确定要放弃吗？"): boolean => {
+    if (!hasUnsavedChanges.current) return true;
+    return window.confirm(message);
+  };
+
   const persistSample = useCallback((updated: Sample) => {
     onSave(updated);
+    setLastSavedSnapshot(updated);
   }, [onSave]);
 
   const handleChange = (field: keyof Sample, value: string) => {
@@ -60,13 +131,23 @@ export default function SampleDetail({ sample, allSamples, onBack, onSave }: Sam
       return;
     }
     onSave(formData);
+    setLastSavedSnapshot(formData);
     setIsEditing(false);
   };
 
   const handleCancel = () => {
-    setFormData(sample);
+    if (!confirmDiscard("取消编辑将放弃所有未保存的修改，确定继续吗？")) {
+      return;
+    }
+    setFormData(lastSavedSnapshot);
     setIsEditing(false);
-    setHasChanges(false);
+  };
+
+  const handleBack = () => {
+    if (!confirmDiscard("返回将放弃所有未保存的修改，确定继续吗？")) {
+      return;
+    }
+    onBack();
   };
 
   const handleTempValueChange = (value: string) => {
@@ -196,7 +277,7 @@ export default function SampleDetail({ sample, allSamples, onBack, onSave }: Sam
   return (
     <div className="sample-detail">
       <div className="detail-header">
-        <button className="back-button" onClick={onBack}>
+        <button className="back-button" onClick={handleBack}>
           ← 返回
         </button>
         <div className="detail-actions">
