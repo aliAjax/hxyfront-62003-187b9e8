@@ -26,6 +26,7 @@ import {
 } from "./batchStorage";
 import SampleFormWizard from "./SampleFormWizard";
 import SampleExportSummary from "./SampleExportSummary";
+import OfflineWorkbench from "./OfflineWorkbench";
 
 const project = {
   "sourceNo": 5,
@@ -81,7 +82,7 @@ const project = {
   ]
 };
 
-type ViewMode = "list" | "detail" | "filter" | "association" | "queue" | "wizard" | "export";
+type ViewMode = "list" | "detail" | "filter" | "association" | "queue" | "wizard" | "export" | "offline";
 
 function App() {
   const [batches, setBatches] = useState<SampleBatch[]>([]);
@@ -318,6 +319,14 @@ function App() {
     setViewMode("list");
   };
 
+  const handleOpenOffline = () => {
+    setViewMode("offline");
+  };
+
+  const handleBackFromOffline = () => {
+    setViewMode("list");
+  };
+
   const totalSamples = batches.reduce((sum, b) => sum + b.sampleCount, 0);
   const avgTemp = batches.length > 0
     ? (
@@ -416,6 +425,10 @@ function App() {
     );
   }
 
+  if (viewMode === "offline") {
+    return <OfflineWorkbench />;
+  }
+
   return (
     <main className="app">
       <section className="hero">
@@ -476,6 +489,15 @@ function App() {
               style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
             >
               📤 样本导出摘要
+            </button>
+          </div>
+          <div className="association-entry" style={{ marginTop: "10px" }}>
+            <button
+              className="primary full-width"
+              onClick={handleOpenOffline}
+              style={{ background: "linear-gradient(135deg, #0ea5e9, #0891b2)", borderColor: "#0ea5e9" }}
+            >
+              🌐 离线优先工作台
             </button>
           </div>
         </aside>
