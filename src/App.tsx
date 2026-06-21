@@ -3,6 +3,7 @@ import "./styles.css";
 import BatchForm from "./BatchForm";
 import BatchList from "./BatchList";
 import SampleDetail from "./SampleDetail";
+import DevelopmentStageFilter from "./DevelopmentStageFilter";
 import {
   SampleBatch,
   Sample,
@@ -69,7 +70,7 @@ const project = {
   ]
 };
 
-type ViewMode = "list" | "detail";
+type ViewMode = "list" | "detail" | "filter";
 
 function App() {
   const [batches, setBatches] = useState<SampleBatch[]>([]);
@@ -138,6 +139,14 @@ function App() {
     setBatches((prev) => prev.filter((b) => b.id !== id));
   };
 
+  const handleOpenFilter = () => {
+    setViewMode("filter");
+  };
+
+  const handleBackFromFilter = () => {
+    setViewMode("list");
+  };
+
   const totalSamples = batches.reduce((sum, b) => sum + b.sampleCount, 0);
   const avgTemp = batches.length > 0
     ? (
@@ -158,6 +167,19 @@ function App() {
   const selectedSample = selectedSampleId
     ? getSampleById(samples, selectedSampleId)
     : null;
+
+  if (viewMode === "filter") {
+    return (
+      <main className="app">
+        <DevelopmentStageFilter
+          samples={samples}
+          batches={batches}
+          onBack={handleBackFromFilter}
+          onViewDetail={handleViewDetail}
+        />
+      </main>
+    );
+  }
 
   if (viewMode === "detail" && selectedSample) {
     return (
@@ -193,7 +215,9 @@ function App() {
           <h2>{project.domain}筛选</h2>
           <div className="chips">
             {project.filters.map((item: string) => (
-              <button key={item}>{item}</button>
+              <button key={item} onClick={handleOpenFilter}>
+                {item}
+              </button>
             ))}
           </div>
         </aside>

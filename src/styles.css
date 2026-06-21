@@ -715,3 +715,224 @@ input:focus,
     justify-content: flex-end;
   }
 }
+
+.filter-page {
+  display: grid;
+  gap: 18px;
+}
+
+.filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.filter-page-title {
+  margin: 0;
+  font-size: 24px;
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.filter-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: 0 4px 16px rgba(31, 41, 55, 0.06);
+}
+
+.filter-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 10px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: #f8fafc;
+  transition: all 0.2s;
+  min-height: 72px;
+}
+
+.filter-tab:hover {
+  background: #f1f5f9;
+  border-color: var(--border);
+}
+
+.filter-tab.active {
+  background: linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 80%, var(--secondary)));
+  border-color: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 30%, transparent);
+}
+
+.filter-tab-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.filter-tab-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.filter-results-info {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 18px;
+  color: #526071;
+  font-size: 14px;
+}
+
+.filter-results-info strong {
+  color: var(--primary);
+  font-weight: 700;
+  margin: 0 4px;
+}
+
+.sample-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.sample-filter-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 16px rgba(31, 41, 55, 0.06);
+}
+
+.sample-filter-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(31, 41, 55, 0.12);
+  border-color: var(--primary);
+}
+
+.sample-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.sample-card-title-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sample-card-number {
+  margin: 0;
+  font-size: 18px;
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.pending-review-badge {
+  background: color-mix(in srgb, var(--accent) 12%, #ffffff);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.sample-card-stage {
+  background: color-mix(in srgb, var(--secondary) 10%, #ffffff);
+  color: var(--secondary);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sample-card-body {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.sample-info-row {
+  display: grid;
+  grid-template-columns: 24px 72px 1fr;
+  gap: 8px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.info-icon {
+  font-size: 16px;
+  opacity: 0.8;
+  text-align: center;
+}
+
+.info-label {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.info-value {
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.status-value {
+  font-weight: 600;
+}
+
+.status-pending {
+  color: var(--accent);
+}
+
+.status-normal {
+  color: var(--primary);
+}
+
+.sample-card-footer {
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.species-tag {
+  display: inline-block;
+  background: color-mix(in srgb, var(--primary) 8%, #ffffff);
+  color: var(--primary);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .filter-tabs {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .sample-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-header {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .filter-page-title {
+    font-size: 20px;
+  }
+}
