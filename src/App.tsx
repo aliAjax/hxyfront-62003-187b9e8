@@ -83,6 +83,17 @@ function App() {
     const loadedBatches = loadBatches();
     let loadedSamples = loadSamples();
 
+    const extractTempFromRecordInfo = (info: string): string => {
+      const match = info.match(/([\d.]+)\s*℃/);
+      return match ? match[1] : "";
+    };
+
+    const recordData: Record<string, { location: string; temperature: string }> = {
+      "CASE-042-A": { location: "室外草地", temperature: "28.6" },
+      "CASE-042-B": { location: "阴影区域", temperature: "25.3" },
+      "CASE-051-A": { location: "水沟边缘", temperature: "22.8" },
+    };
+
     if (loadedSamples.length === 0) {
       const now = new Date().toISOString();
       const initialSamples: Sample[] = project.records.map((record, index) => ({
@@ -93,13 +104,54 @@ function App() {
         preservationMethod: index === 0 ? "乙醇保存" : "",
         identificationNotes: index === 1 ? "需复核种属" : index === 2 ? "已完成拍照" : "",
         relatedCase: record[0].split("-").slice(0, 2).join("-"),
-        samplingLocation: index === 0 ? "室外草地" : index === 1 ? "阴影区域" : "水沟边缘",
-        environmentTemperature: index === 0 ? "28.6" : index === 1 ? "25.3" : "22.8",
+        samplingLocation: recordData[record[0]]?.location || record[1] || "",
+        environmentTemperature: recordData[record[0]]?.temperature || extractTempFromRecordInfo(record[2]) || "",
         createdAt: now,
         updatedAt: now,
       }));
       loadedSamples = initialSamples;
       saveSamples(initialSamples);
+    } else {
+      const now = new Date().toISOString();
+      let needsMigration = false;
+      const migratedSamples = loadedSamples.map((sample) => {
+        let changed = false;
+        const newSample = { ...sample };
+        const record = recordData[sample.sampleNumber];
+        if (!newSample.samplingLocation) {
+          if (record?.location) {
+            newSample.samplingLocation = record.location;
+            changed = true;
+          } else {
+              const batch = loadedBatches.find((b) => b.caseNumber === sample.relatedCase);
+              if (batch?.samplingLocation) {
+                newSample.samplingLocation = batch.samplingLocation;
+                changed = true;
+              }
+          }
+        }
+        if (!newSample.environmentTemperature) {
+          if (record?.temperature) {
+            newSample.environmentTemperature = record.temperature;
+            changed = true;
+          } else {
+            const batch = loadedBatches.find((b) => b.caseNumber === sample.relatedCase);
+            if (batch?.environmentTemperature) {
+              newSample.environmentTemperature = batch.environmentTemperature;
+              changed = true;
+            }
+          }
+        }
+        if (changed) {
+          newSample.updatedAt = now;
+          needsMigration = true;
+        }
+        return newSample;
+      });
+      if (needsMigration) {
+        loadedSamples = migratedSamples;
+        saveSamples(migratedSamples);
+      }
     }
 
     setBatches(loadedBatches);
