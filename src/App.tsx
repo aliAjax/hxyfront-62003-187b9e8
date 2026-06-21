@@ -85,6 +85,7 @@ function App() {
   const [samples, setSamples] = useState<Sample[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [previousViewMode, setPreviousViewMode] = useState<ViewMode>("list");
   const [selectedSampleId, setSelectedSampleId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -222,12 +223,13 @@ function App() {
   }, [samples, isLoaded]);
 
   const handleViewDetail = (sampleId: string) => {
+    setPreviousViewMode(viewMode);
     setSelectedSampleId(sampleId);
     setViewMode("detail");
   };
 
-  const handleBackToList = () => {
-    setViewMode("list");
+  const handleBackFromDetail = () => {
+    setViewMode(previousViewMode);
     setSelectedSampleId(null);
   };
 
@@ -337,7 +339,7 @@ function App() {
         <SampleDetail
           sample={selectedSample}
           allSamples={samples}
-          onBack={handleBackToList}
+          onBack={handleBackFromDetail}
           onSave={handleSaveSample}
         />
       </main>
