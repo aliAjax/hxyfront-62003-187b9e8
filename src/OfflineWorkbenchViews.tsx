@@ -185,14 +185,14 @@ export function BatchEditView({
   useEffect(() => {
     const changed = Object.keys(formData).some(
       (k) =>
-        JSON.stringify((formData as Record<string, unknown>)[k]) !==
-        JSON.stringify((batch as Record<string, unknown>)[k])
+        JSON.stringify((formData as unknown as Record<string, unknown>)[k]) !==
+        JSON.stringify((batch as unknown as Record<string, unknown>)[k])
     );
     setHasChanges(changed);
   }, [formData, batch]);
 
   const handleChange = (field: keyof SampleBatch, value: string | number) => {
-    setFormData((prev) => ({ ...prev, [field]: value } as SampleBatch));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = () => {
@@ -392,8 +392,8 @@ export function SampleDetailView({
   useEffect(() => {
     const changed = Object.keys(formData).some(
       (k) =>
-        JSON.stringify((formData as Record<string, unknown>)[k]) !==
-        JSON.stringify((sample as Record<string, unknown>)[k])
+        JSON.stringify((formData as unknown as Record<string, unknown>)[k]) !==
+        JSON.stringify((sample as unknown as Record<string, unknown>)[k])
     );
     setHasChanges(changed);
   }, [formData, sample]);

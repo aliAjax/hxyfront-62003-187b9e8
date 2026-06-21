@@ -336,7 +336,7 @@ export default function OfflineWorkbench() {
           const changedFields: string[] = [];
           for (const key of Object.keys(updates)) {
             if (
-              JSON.stringify((b as Record<string, unknown>)[key]) !==
+              JSON.stringify((b as unknown as Record<string, unknown>)[key]) !==
               JSON.stringify(updates[key as keyof SampleBatch])
             ) {
               changedFields.push(key);
@@ -448,7 +448,7 @@ export default function OfflineWorkbench() {
           const changedFields: string[] = [];
           for (const key of Object.keys(updates)) {
             if (
-              JSON.stringify((s as Record<string, unknown>)[key]) !==
+              JSON.stringify((s as unknown as Record<string, unknown>)[key]) !==
               JSON.stringify(updates[key as keyof Sample])
             ) {
               changedFields.push(key);
@@ -478,16 +478,15 @@ export default function OfflineWorkbench() {
     (sampleId: string, newStatus: SampleStatus, note: string) => {
       setSamples((prev) => {
         const updated = baseUpdateSampleStatus(prev, sampleId, newStatus, note);
-        return updated.map((s) =>
-          s.id === sampleId
-            ? {
-                ...s,
-                syncMeta: markModified(
-                  (prev.find((p) => p.id === sampleId)!).syncMeta
-                ),
-              }
-            : s
-        );
+        return updated.map((s) => {
+          const previous = prev.find((p) => p.id === s.id);
+          if (!previous) return s as SyncedSample;
+          return {
+            ...s,
+            syncMeta:
+              s.id === sampleId ? markModified(previous.syncMeta) : previous.syncMeta,
+          };
+        });
       });
       const sample = samples.find((s) => s.id === sampleId);
       recordOperation({
