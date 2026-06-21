@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Sample,
   TemperatureRecord,
@@ -15,6 +15,7 @@ interface TimelineAnalysisProps {
   caseNumber: string;
   onBack: () => void;
   onViewSampleDetail: (sampleId: string) => void;
+  onMockSamplesReady?: (mockSamples: Sample[]) => void;
 }
 
 interface TimelineEvent {
@@ -260,12 +261,38 @@ export default function TimelineAnalysis({
   caseNumber,
   onBack,
   onViewSampleDetail,
+  onMockSamplesReady,
 }: TimelineAnalysisProps) {
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
   const [activeFilter, setActiveFilter] = useState<string>("all");
 
   const mockSamples = useMemo(() => generateMockSamples(caseNumber), [caseNumber]);
-  const caseSamples = mockSamples;
+
+  const realCaseSamples = useMemo(() => {
+    return propSamples.filter((s) => s.relatedCase === caseNumber);
+  }, [propSamples, caseNumber]);
+
+  const hasSufficientRealData = useMemo(() => {
+    if (realCaseSamples.length < 2) return false;
+    const hasTempRecords = realCaseSamples.some(
+      (s) => s.temperatureRecords && s.temperatureRecords.length >= 3
+    );
+    const hasDevelopmentStages = realCaseSamples.some((s) => s.developmentStage);
+    const hasExposureStages = realCaseSamples.some((s) => s.exposureStage);
+    return hasTempRecords && hasDevelopmentStages && hasExposureStages;
+  }, [realCaseSamples]);
+
+  const caseSamples = useMemo(() => {
+    return hasSufficientRealData ? realCaseSamples : mockSamples;
+  }, [hasSufficientRealData, realCaseSamples, mockSamples]);
+
+  useEffect(() => {
+    if (!hasSufficientRealData && onMockSamplesReady) {
+      onMockSamplesReady(mockSamples);
+    } else if (onMockSamplesReady) {
+      onMockSamplesReady([]);
+    }
+  }, [hasSufficientRealData, mockSamples, onMockSamplesReady]);
 
   const timelineEvents = useMemo<TimelineEvent[]>(() => {
     const events: TimelineEvent[] = [];

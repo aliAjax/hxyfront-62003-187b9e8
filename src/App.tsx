@@ -93,6 +93,7 @@ function App() {
   const [previousViewMode, setPreviousViewMode] = useState<ViewMode>("list");
   const [selectedSampleId, setSelectedSampleId] = useState<string | null>(null);
   const [selectedCaseForTimeline, setSelectedCaseForTimeline] = useState<string>("CASE-042");
+  const [timelineMockSamples, setTimelineMockSamples] = useState<Sample[]>([]);
 
   useEffect(() => {
     const loadedBatches = loadBatches();
@@ -341,6 +342,10 @@ function App() {
     setViewMode(previousViewMode);
   };
 
+  const handleTimelineMockSamplesReady = (mockSamples: Sample[]) => {
+    setTimelineMockSamples(mockSamples);
+  };
+
   const totalSamples = batches.reduce((sum, b) => sum + b.sampleCount, 0);
   const avgTemp = batches.length > 0
     ? (
@@ -359,7 +364,7 @@ function App() {
   ];
 
   const selectedSample = selectedSampleId
-    ? getSampleById(samples, selectedSampleId)
+    ? getSampleById([...samples, ...timelineMockSamples], selectedSampleId)
     : null;
 
   if (viewMode === "filter") {
@@ -451,6 +456,7 @@ function App() {
           caseNumber={selectedCaseForTimeline}
           onBack={handleBackFromTimeline}
           onViewSampleDetail={handleViewDetail}
+          onMockSamplesReady={handleTimelineMockSamplesReady}
         />
       </main>
     );
