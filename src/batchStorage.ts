@@ -255,6 +255,17 @@ export function getUnassociatedSamples(samples: Sample[]): Sample[] {
   return samples.filter((s) => !s.relatedCase.trim());
 }
 
+export function updateBatch(
+  batches: SampleBatch[],
+  id: string,
+  updates: Partial<SampleBatch>
+): SampleBatch[] {
+  const now = new Date().toISOString();
+  return batches.map((b) =>
+    b.id === id ? { ...b, ...updates, updatedAt: now } : b
+  );
+}
+
 export function getBatchesByCase(batches: SampleBatch[], caseNumber: string): SampleBatch[] {
   return batches.filter((b) => b.caseNumber === caseNumber);
 }

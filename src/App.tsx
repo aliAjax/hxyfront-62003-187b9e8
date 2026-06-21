@@ -23,6 +23,7 @@ import {
   associateSampleToCase,
   unassociateSampleFromCase,
   getAllCaseNumbers,
+  updateBatch,
 } from "./batchStorage";
 import SampleFormWizard from "./SampleFormWizard";
 import SampleExportSummary from "./SampleExportSummary";
@@ -258,6 +259,10 @@ function App() {
 
   const handleDeleteBatch = (id: string) => {
     setBatches((prev) => prev.filter((b) => b.id !== id));
+  };
+
+  const handleUpdateBatch = (id: string, updates: Partial<SampleBatch>) => {
+    setBatches((prev) => updateBatch(prev, id, updates));
   };
 
   const handleOpenFilter = () => {
@@ -547,7 +552,7 @@ function App() {
         <BatchForm onSubmit={handleCreateBatch} />
       </section>
 
-      {isLoaded && <BatchList batches={batches} onDelete={handleDeleteBatch} />}
+      {isLoaded && <BatchList batches={batches} onDelete={handleDeleteBatch} onUpdate={handleUpdateBatch} />}
 
       <section className="panel" style={{ marginTop: "18px" }}>
         <div className="heading">
