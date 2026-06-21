@@ -27,6 +27,7 @@ import {
 import SampleFormWizard from "./SampleFormWizard";
 import SampleExportSummary from "./SampleExportSummary";
 import OfflineWorkbench from "./OfflineWorkbench";
+import TimelineAnalysis from "./TimelineAnalysis";
 
 const project = {
   "sourceNo": 5,
@@ -82,7 +83,7 @@ const project = {
   ]
 };
 
-type ViewMode = "list" | "detail" | "filter" | "association" | "queue" | "wizard" | "export" | "offline";
+type ViewMode = "list" | "detail" | "filter" | "association" | "queue" | "wizard" | "export" | "offline" | "timeline";
 
 function App() {
   const [batches, setBatches] = useState<SampleBatch[]>([]);
@@ -91,6 +92,7 @@ function App() {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [previousViewMode, setPreviousViewMode] = useState<ViewMode>("list");
   const [selectedSampleId, setSelectedSampleId] = useState<string | null>(null);
+  const [selectedCaseForTimeline, setSelectedCaseForTimeline] = useState<string>("CASE-042");
 
   useEffect(() => {
     const loadedBatches = loadBatches();
@@ -327,6 +329,18 @@ function App() {
     setViewMode("list");
   };
 
+  const handleOpenTimeline = (caseNumber?: string) => {
+    if (caseNumber) {
+      setSelectedCaseForTimeline(caseNumber);
+    }
+    setPreviousViewMode(viewMode);
+    setViewMode("timeline");
+  };
+
+  const handleBackFromTimeline = () => {
+    setViewMode(previousViewMode);
+  };
+
   const totalSamples = batches.reduce((sum, b) => sum + b.sampleCount, 0);
   const avgTemp = batches.length > 0
     ? (
@@ -429,6 +443,19 @@ function App() {
     return <OfflineWorkbench />;
   }
 
+  if (viewMode === "timeline") {
+    return (
+      <main className="app">
+        <TimelineAnalysis
+          samples={samples}
+          caseNumber={selectedCaseForTimeline}
+          onBack={handleBackFromTimeline}
+          onViewSampleDetail={handleViewDetail}
+        />
+      </main>
+    );
+  }
+
   return (
     <main className="app">
       <section className="hero">
@@ -498,6 +525,15 @@ function App() {
               style={{ background: "linear-gradient(135deg, #0ea5e9, #0891b2)", borderColor: "#0ea5e9" }}
             >
               🌐 离线优先工作台
+            </button>
+          </div>
+          <div className="association-entry" style={{ marginTop: "10px" }}>
+            <button
+              className="primary full-width"
+              onClick={() => handleOpenTimeline()}
+              style={{ background: "linear-gradient(135deg, #059669, #047857)", borderColor: "#059669" }}
+            >
+              ⏱️ 时间线分析
             </button>
           </div>
         </aside>
