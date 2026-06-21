@@ -58,35 +58,6 @@ function baseFieldsEqual(a: Sample, b: Sample): boolean {
   return true;
 }
 
-function deepEqualSample(a: Sample, b: Sample): boolean {
-  if (a === b) return true;
-  const keys = Object.keys(a) as (keyof Sample)[];
-  for (const k of keys) {
-    const va = a[k];
-    const vb = b[k];
-    if (Array.isArray(va) && Array.isArray(vb)) {
-      if (va.length !== vb.length) return false;
-      for (let i = 0; i < va.length; i++) {
-        const xa = va[i];
-        const xb = vb[i];
-        if (typeof xa === "object" && typeof xb === "object" && xa !== null && xb !== null) {
-          const oa = xa as Record<string, unknown>;
-          const ob = xb as Record<string, unknown>;
-          const allKeys = new Set([...Object.keys(oa), ...Object.keys(ob)]);
-          for (const ok of allKeys) {
-            if (JSON.stringify(oa[ok]) !== JSON.stringify(ob[ok])) return false;
-          }
-        } else if (xa !== xb) {
-          return false;
-        }
-      }
-    } else if (va !== vb) {
-      return false;
-    }
-  }
-  return true;
-}
-
 export default function SampleDetail({ sample, allSamples, onBack, onSave, registerDirtyChecker }: SampleDetailProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Sample>(sample);
@@ -100,13 +71,25 @@ export default function SampleDetail({ sample, allSamples, onBack, onSave, regis
   const [tempSavedFeedback, setTempSavedFeedback] = useState("");
 
   const hasUnsavedChanges = useRef(false);
+  const isEditingRef = useRef(false);
 
   useEffect(() => {
-    setFormData(sample);
-    setHasChanges(false);
+    isEditingRef.current = isEditing;
+  }, [isEditing]);
+
+  useEffect(() => {
     setLastSavedSnapshot(sample);
-    setEditBaseSnapshot(sample);
-    setIsEditing(false);
+    setFormData((prev) => {
+      if (isEditingRef.current && prev.id === sample.id) {
+        return {
+          ...sample,
+          ...pickBaseFields(prev),
+        };
+      }
+      setEditBaseSnapshot(sample);
+      setIsEditing(false);
+      return sample;
+    });
   }, [sample]);
 
   useEffect(() => {
@@ -235,8 +218,14 @@ export default function SampleDetail({ sample, allSamples, onBack, onSave, regis
       ...formData,
       temperatureRecords: [...formData.temperatureRecords, newRecord],
     };
+    const saved: Sample = isEditing
+      ? {
+          ...updated,
+          ...pickBaseFields(editBaseSnapshot),
+        }
+      : updated;
     setFormData(updated);
-    persistSample(updated);
+    persistSample(saved);
 
     setNewTempValue("");
     setNewTempTime("");
@@ -251,8 +240,14 @@ export default function SampleDetail({ sample, allSamples, onBack, onSave, regis
       ...formData,
       temperatureRecords: formData.temperatureRecords.filter((r) => r.id !== id),
     };
+    const saved: Sample = isEditing
+      ? {
+          ...updated,
+          ...pickBaseFields(editBaseSnapshot),
+        }
+      : updated;
     setFormData(updated);
-    persistSample(updated);
+    persistSample(saved);
   };
 
   const sortedTempRecords = getSortedTemperatureRecords(formData.temperatureRecords);
