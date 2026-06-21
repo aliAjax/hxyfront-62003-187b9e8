@@ -2,10 +2,17 @@ import { useState, useEffect } from "react";
 import "./styles.css";
 import BatchForm from "./BatchForm";
 import BatchList from "./BatchList";
+import SampleDetail from "./SampleDetail";
 import {
   SampleBatch,
+  Sample,
   loadBatches,
   saveBatches,
+  loadSamples,
+  saveSamples,
+  generateSampleId,
+  getSampleById,
+  updateSample,
 } from "./batchStorage";
 
 const project = {
@@ -62,12 +69,38 @@ const project = {
   ]
 };
 
+type ViewMode = "list" | "detail";
+
 function App() {
   const [batches, setBatches] = useState<SampleBatch[]>([]);
+  const [samples, setSamples] = useState<Sample[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [selectedSampleId, setSelectedSampleId] = useState<string | null>(null);
 
   useEffect(() => {
-    setBatches(loadBatches());
+    const loadedBatches = loadBatches();
+    let loadedSamples = loadSamples();
+
+    if (loadedSamples.length === 0) {
+      const now = new Date().toISOString();
+      const initialSamples: Sample[] = project.records.map((record, index) => ({
+        id: generateSampleId(),
+        sampleNumber: record[0],
+        insectSpecies: "",
+        developmentStage: index === 0 ? "幼虫三龄" : index === 1 ? "蛹" : "成虫",
+        preservationMethod: index === 0 ? "乙醇保存" : "",
+        identificationNotes: index === 1 ? "需复核种属" : index === 2 ? "已完成拍照" : "",
+        relatedCase: record[0].split("-").slice(0, 2).join("-"),
+        createdAt: now,
+        updatedAt: now,
+      }));
+      loadedSamples = initialSamples;
+      saveSamples(initialSamples);
+    }
+
+    setBatches(loadedBatches);
+    setSamples(loadedSamples);
     setIsLoaded(true);
   }, []);
 
@@ -76,6 +109,26 @@ function App() {
       saveBatches(batches);
     }
   }, [batches, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      saveSamples(samples);
+    }
+  }, [samples, isLoaded]);
+
+  const handleViewDetail = (sampleId: string) => {
+    setSelectedSampleId(sampleId);
+    setViewMode("detail");
+  };
+
+  const handleBackToList = () => {
+    setViewMode("list");
+    setSelectedSampleId(null);
+  };
+
+  const handleSaveSample = (updatedSample: Sample) => {
+    setSamples((prev) => updateSample(prev, updatedSample.id, updatedSample));
+  };
 
   const handleCreateBatch = (newBatch: SampleBatch) => {
     setBatches((prev) => [newBatch, ...prev]);
@@ -101,6 +154,22 @@ function App() {
     { label: project.metrics[2], value: new Set(batches.map((b) => b.exposureStage).filter(Boolean)).size },
     { label: project.metrics[3], value: totalSamples },
   ];
+
+  const selectedSample = selectedSampleId
+    ? getSampleById(samples, selectedSampleId)
+    : null;
+
+  if (viewMode === "detail" && selectedSample) {
+    return (
+      <main className="app">
+        <SampleDetail
+          sample={selectedSample}
+          onBack={handleBackToList}
+          onSave={handleSaveSample}
+        />
+      </main>
+    );
+  }
 
   return (
     <main className="app">
@@ -143,12 +212,24 @@ function App() {
           <button>导出摘要</button>
         </div>
         <div className="records">
-          {project.records.map((record: string[], index: number) => (
-            <article key={record.join("-")}>
+          {samples.map((sample, index: number) => (
+            <article
+              key={sample.id}
+              className="record-item"
+              onClick={() => handleViewDetail(sample.id)}
+            >
               <b>{String(index + 1).padStart(2, "0")}</b>
               <div>
-                <h3>{record[0]}</h3>
-                <p>{record.slice(1).join(" · ")}</p>
+                <h3>{sample.sampleNumber}</h3>
+                <p>
+                  {[
+                    sample.developmentStage,
+                    sample.preservationMethod,
+                    sample.identificationNotes,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || "点击查看详情"}
+                </p>
               </div>
             </article>
           ))}
