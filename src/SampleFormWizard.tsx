@@ -121,21 +121,54 @@ export default function SampleFormWizard({
     }
 
     const now = new Date().toISOString();
+    const additionalNotes: string[] = [];
+    if (draft.environmentHumidity.trim()) {
+      additionalNotes.push(`环境湿度：${draft.environmentHumidity.trim()}%`);
+    }
+    if (draft.weatherCondition.trim()) {
+      additionalNotes.push(`天气情况：${draft.weatherCondition.trim()}`);
+    }
+    if (draft.insectCount.trim()) {
+      additionalNotes.push(`采集数量：${draft.insectCount.trim()}`);
+    }
+    if (draft.insectCollectionMethod.trim()) {
+      additionalNotes.push(`采集方法：${draft.insectCollectionMethod.trim()}`);
+    }
+    if (draft.preservationSolution.trim()) {
+      additionalNotes.push(`保存溶液：${draft.preservationSolution.trim()}`);
+    }
+    if (draft.storageTemperature.trim()) {
+      additionalNotes.push(`存储温度：${draft.storageTemperature.trim()}℃`);
+    }
+    if (draft.exposureNotes.trim()) {
+      additionalNotes.push(`暴露备注：${draft.exposureNotes.trim()}`);
+    }
+
+    const allNotes = [
+      draft.identificationNotes.trim(),
+      ...additionalNotes,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
     const newSample: Sample = {
       id: generateSampleId(),
       sampleNumber: draft.sampleNumber.trim(),
       insectSpecies: draft.insectSpecies.trim(),
       developmentStage: draft.developmentStage,
       preservationMethod: draft.preservationMethod,
-      identificationNotes: [
-        draft.identificationNotes.trim(),
-        draft.exposureNotes.trim() ? `暴露备注：${draft.exposureNotes.trim()}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n"),
+      identificationNotes: allNotes,
       relatedCase: draft.relatedCase.trim(),
       samplingLocation: draft.samplingLocation.trim(),
       environmentTemperature: draft.environmentTemperature.trim(),
+      environmentHumidity: draft.environmentHumidity.trim(),
+      weatherCondition: draft.weatherCondition.trim(),
+      exposureStage: draft.exposureStage.trim(),
+      exposureNotes: draft.exposureNotes.trim(),
+      insectCount: draft.insectCount.trim(),
+      insectCollectionMethod: draft.insectCollectionMethod.trim(),
+      preservationSolution: draft.preservationSolution.trim(),
+      storageTemperature: draft.storageTemperature.trim(),
       temperatureRecords: [],
       status: "PENDING_IDENTIFICATION",
       statusHistory: [

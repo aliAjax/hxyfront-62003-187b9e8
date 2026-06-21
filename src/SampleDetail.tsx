@@ -8,6 +8,11 @@ import {
   isAbnormalTemperature,
   getSamplesByCase,
   calculateTemperatureStats,
+  DEVELOPMENT_STAGES,
+  PRESERVATION_METHODS,
+  EXPOSURE_STAGES,
+  COLLECTION_METHODS,
+  WEATHER_CONDITIONS,
 } from "./batchStorage";
 import TemperatureChart from "./TemperatureChart";
 
@@ -17,24 +22,6 @@ interface SampleDetailProps {
   onBack: () => void;
   onSave: (updatedSample: Sample) => void;
 }
-
-const DEVELOPMENT_STAGES = [
-  "卵",
-  "幼虫一龄",
-  "幼虫二龄",
-  "幼虫三龄",
-  "蛹",
-  "成虫",
-];
-
-const PRESERVATION_METHODS = [
-  "乙醇保存",
-  "福尔马林保存",
-  "冷冻保存",
-  "干制标本",
-  "活体饲养",
-  "其他",
-];
 
 export default function SampleDetail({ sample, allSamples, onBack, onSave }: SampleDetailProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -261,45 +248,124 @@ export default function SampleDetail({ sample, allSamples, onBack, onSave }: Sam
       </div>
 
       <div className="detail-content">
-        <div className="detail-grid">
-          <InfoItem
-            label="昆虫种类"
-            value={formData.insectSpecies}
-            field="insectSpecies"
-          />
-          <InfoItem
-            label="发育阶段"
-            value={formData.developmentStage}
-            field="developmentStage"
-            type="select"
-            options={DEVELOPMENT_STAGES}
-          />
-          <InfoItem
-            label="采样地点"
-            value={formData.samplingLocation}
-            field="samplingLocation"
-          />
-          <InfoItem
-            label="环境温度"
-            value={formData.environmentTemperature}
-            field="environmentTemperature"
-          />
-          <InfoItem
-            label="保存方式"
-            value={formData.preservationMethod}
-            field="preservationMethod"
-            type="select"
-            options={PRESERVATION_METHODS}
-          />
-          <InfoItem
-            label="关联案件"
-            value={formData.relatedCase}
-            field="relatedCase"
-          />
+        <div className="detail-section">
+          <h3 className="section-title">📍 采样地点</h3>
+          <div className="detail-grid">
+            <InfoItem
+              label="样本编号"
+              value={formData.sampleNumber}
+              field="sampleNumber"
+            />
+            <InfoItem
+              label="采样地点"
+              value={formData.samplingLocation}
+              field="samplingLocation"
+            />
+            <InfoItem
+              label="关联案件"
+              value={formData.relatedCase}
+              field="relatedCase"
+            />
+          </div>
         </div>
 
         <div className="detail-section">
-          <h3 className="section-title">鉴定备注</h3>
+          <h3 className="section-title">🌡️ 环境条件</h3>
+          <div className="detail-grid">
+            <InfoItem
+              label="环境温度 (℃)"
+              value={formData.environmentTemperature}
+              field="environmentTemperature"
+            />
+            <InfoItem
+              label="相对湿度 (%)"
+              value={formData.environmentHumidity}
+              field="environmentHumidity"
+            />
+            <InfoItem
+              label="天气情况"
+              value={formData.weatherCondition}
+              field="weatherCondition"
+              type="select"
+              options={WEATHER_CONDITIONS}
+            />
+          </div>
+        </div>
+
+        <div className="detail-section">
+          <h3 className="section-title">💀 尸体暴露阶段</h3>
+          <div className="detail-grid">
+            <InfoItem
+              label="暴露阶段"
+              value={formData.exposureStage}
+              field="exposureStage"
+              type="select"
+              options={EXPOSURE_STAGES}
+            />
+            <InfoItem
+              label="暴露情况备注"
+              value={formData.exposureNotes}
+              field="exposureNotes"
+              type="textarea"
+            />
+          </div>
+        </div>
+
+        <div className="detail-section">
+          <h3 className="section-title">🪰 昆虫信息</h3>
+          <div className="detail-grid">
+            <InfoItem
+              label="昆虫种类"
+              value={formData.insectSpecies}
+              field="insectSpecies"
+            />
+            <InfoItem
+              label="采集数量"
+              value={formData.insectCount}
+              field="insectCount"
+            />
+            <InfoItem
+              label="发育阶段"
+              value={formData.developmentStage}
+              field="developmentStage"
+              type="select"
+              options={DEVELOPMENT_STAGES}
+            />
+            <InfoItem
+              label="采集方法"
+              value={formData.insectCollectionMethod}
+              field="insectCollectionMethod"
+              type="select"
+              options={COLLECTION_METHODS}
+            />
+          </div>
+        </div>
+
+        <div className="detail-section">
+          <h3 className="section-title">🧪 保存方式</h3>
+          <div className="detail-grid">
+            <InfoItem
+              label="保存方式"
+              value={formData.preservationMethod}
+              field="preservationMethod"
+              type="select"
+              options={PRESERVATION_METHODS}
+            />
+            <InfoItem
+              label="保存溶液 / 试剂"
+              value={formData.preservationSolution}
+              field="preservationSolution"
+            />
+            <InfoItem
+              label="存储温度 (℃)"
+              value={formData.storageTemperature}
+              field="storageTemperature"
+            />
+          </div>
+        </div>
+
+        <div className="detail-section">
+          <h3 className="section-title">📝 鉴定备注</h3>
           <InfoItem
             label=""
             value={formData.identificationNotes}

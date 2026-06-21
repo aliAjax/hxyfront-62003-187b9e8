@@ -43,6 +43,14 @@ export interface Sample {
   relatedCase: string;
   samplingLocation: string;
   environmentTemperature: string;
+  environmentHumidity: string;
+  weatherCondition: string;
+  exposureStage: string;
+  exposureNotes: string;
+  insectCount: string;
+  insectCollectionMethod: string;
+  preservationSolution: string;
+  storageTemperature: string;
   temperatureRecords: TemperatureRecord[];
   status: SampleStatus;
   statusHistory: StatusHistoryRecord[];
@@ -116,6 +124,14 @@ export function loadSamples(): Sample[] {
       ...s,
       samplingLocation: s.samplingLocation || "",
       environmentTemperature: s.environmentTemperature || "",
+      environmentHumidity: s.environmentHumidity || "",
+      weatherCondition: s.weatherCondition || "",
+      exposureStage: s.exposureStage || "",
+      exposureNotes: s.exposureNotes || "",
+      insectCount: s.insectCount || "",
+      insectCollectionMethod: s.insectCollectionMethod || "",
+      preservationSolution: s.preservationSolution || "",
+      storageTemperature: s.storageTemperature || "",
       temperatureRecords: s.temperatureRecords || [],
       status: s.status || "PENDING_IDENTIFICATION",
       statusHistory: s.statusHistory || [],
