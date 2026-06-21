@@ -19,6 +19,8 @@ export interface Sample {
   preservationMethod: string;
   identificationNotes: string;
   relatedCase: string;
+  samplingLocation: string;
+  environmentTemperature: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -63,7 +65,12 @@ export function loadSamples(): Sample[] {
     const raw = localStorage.getItem(SAMPLE_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((s) => ({
+      ...s,
+      samplingLocation: s.samplingLocation || "",
+      environmentTemperature: s.environmentTemperature || "",
+    }));
   } catch {
     return [];
   }

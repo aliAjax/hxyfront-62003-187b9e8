@@ -93,6 +93,8 @@ function App() {
         preservationMethod: index === 0 ? "乙醇保存" : "",
         identificationNotes: index === 1 ? "需复核种属" : index === 2 ? "已完成拍照" : "",
         relatedCase: record[0].split("-").slice(0, 2).join("-"),
+        samplingLocation: index === 0 ? "室外草地" : index === 1 ? "阴影区域" : "水沟边缘",
+        environmentTemperature: index === 0 ? "28.6" : index === 1 ? "25.3" : "22.8",
         createdAt: now,
         updatedAt: now,
       }));
@@ -173,7 +175,6 @@ function App() {
       <main className="app">
         <DevelopmentStageFilter
           samples={samples}
-          batches={batches}
           onBack={handleBackFromFilter}
           onViewDetail={handleViewDetail}
         />

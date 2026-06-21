@@ -1,9 +1,8 @@
 import { useState, useMemo } from "react";
-import { Sample, SampleBatch } from "./batchStorage";
+import { Sample } from "./batchStorage";
 
 interface DevelopmentStageFilterProps {
   samples: Sample[];
-  batches: SampleBatch[];
   onBack: () => void;
   onViewDetail: (sampleId: string) => void;
 }
@@ -30,13 +29,6 @@ function isPendingReview(sample: Sample): boolean {
   );
 }
 
-function getBatchForSample(
-  sample: Sample,
-  batches: SampleBatch[]
-): SampleBatch | undefined {
-  return batches.find((b) => b.caseNumber === sample.relatedCase);
-}
-
 function matchDevelopmentStage(
   developmentStage: string,
   filterKey: string
@@ -50,7 +42,6 @@ function matchDevelopmentStage(
 
 export default function DevelopmentStageFilter({
   samples,
-  batches,
   onBack,
   onViewDetail,
 }: DevelopmentStageFilterProps) {
@@ -63,15 +54,11 @@ export default function DevelopmentStageFilter({
   }, [samples, activeFilter]);
 
   const sampleCards = useMemo(() => {
-    return filteredSamples.map((sample) => {
-      const batch = getBatchForSample(sample, batches);
-      return {
-        sample,
-        batch,
-        pendingReview: isPendingReview(sample),
-      };
-    });
-  }, [filteredSamples, batches]);
+    return filteredSamples.map((sample) => ({
+      sample,
+      pendingReview: isPendingReview(sample),
+    }));
+  }, [filteredSamples]);
 
   return (
     <div className="filter-page">
@@ -111,7 +98,7 @@ export default function DevelopmentStageFilter({
         </div>
       ) : (
         <div className="sample-card-grid">
-          {sampleCards.map(({ sample, batch, pendingReview }) => (
+          {sampleCards.map(({ sample, pendingReview }) => (
             <article
               key={sample.id}
               className="sample-filter-card"
@@ -132,15 +119,15 @@ export default function DevelopmentStageFilter({
                   <span className="info-icon">📍</span>
                   <span className="info-label">采样地点</span>
                   <span className="info-value">
-                    {batch?.samplingLocation || "—"}
+                    {sample.samplingLocation || "—"}
                   </span>
                 </div>
                 <div className="sample-info-row">
                   <span className="info-icon">🌡️</span>
                   <span className="info-label">温度</span>
                   <span className="info-value">
-                    {batch?.environmentTemperature
-                      ? `${batch.environmentTemperature}℃`
+                    {sample.environmentTemperature
+                      ? `${sample.environmentTemperature}℃`
                       : "—"}
                   </span>
                 </div>

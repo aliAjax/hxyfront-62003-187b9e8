@@ -185,6 +185,16 @@ export default function SampleDetail({ sample, onBack, onSave }: SampleDetailPro
             options={DEVELOPMENT_STAGES}
           />
           <InfoItem
+            label="采样地点"
+            value={formData.samplingLocation}
+            field="samplingLocation"
+          />
+          <InfoItem
+            label="环境温度"
+            value={formData.environmentTemperature}
+            field="environmentTemperature"
+          />
+          <InfoItem
             label="保存方式"
             value={formData.preservationMethod}
             field="preservationMethod"
