@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Sample,
   SampleBatch,
@@ -42,6 +42,14 @@ export default function CaseAssociationWorkspace({
   );
 
   const [showAssociateDialog, setShowAssociateDialog] = useState(false);
+
+  useEffect(() => {
+    if (selectedCase !== null && !allCaseNumbers.includes(selectedCase)) {
+      setSelectedCase(
+        allCaseNumbers.length > 0 ? allCaseNumbers[0] : null
+      );
+    }
+  }, [allCaseNumbers, selectedCase]);
 
   const caseInfos = useMemo(() => {
     return allCaseNumbers.map((cn) => buildCaseInfo(batches, samples, cn));
