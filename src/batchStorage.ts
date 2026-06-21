@@ -18,6 +18,21 @@ export interface TemperatureRecord {
   note?: string;
 }
 
+export type SampleStatus =
+  | "PENDING_IDENTIFICATION"
+  | "NEEDS_REVIEW"
+  | "PHOTO_COMPLETED"
+  | "CONFIRMED";
+
+export interface StatusHistoryRecord {
+  id: string;
+  oldStatus: SampleStatus | null;
+  newStatus: SampleStatus;
+  timestamp: string;
+  operator: string;
+  note: string;
+}
+
 export interface Sample {
   id: string;
   sampleNumber: string;
@@ -29,9 +44,32 @@ export interface Sample {
   samplingLocation: string;
   environmentTemperature: string;
   temperatureRecords: TemperatureRecord[];
+  status: SampleStatus;
+  statusHistory: StatusHistoryRecord[];
   createdAt: string;
   updatedAt: string;
 }
+
+export const SAMPLE_STATUS_LABELS: Record<SampleStatus, string> = {
+  PENDING_IDENTIFICATION: "待鉴定",
+  NEEDS_REVIEW: "需复核种属",
+  PHOTO_COMPLETED: "已完成拍照",
+  CONFIRMED: "已确认",
+};
+
+export const SAMPLE_STATUS_COLORS: Record<SampleStatus, string> = {
+  PENDING_IDENTIFICATION: "#dc2626",
+  NEEDS_REVIEW: "#a16207",
+  PHOTO_COMPLETED: "#2563eb",
+  CONFIRMED: "#365314",
+};
+
+export const STATUS_TRANSITIONS: Record<SampleStatus, SampleStatus[]> = {
+  PENDING_IDENTIFICATION: ["NEEDS_REVIEW", "PHOTO_COMPLETED", "CONFIRMED"],
+  NEEDS_REVIEW: ["PHOTO_COMPLETED", "CONFIRMED", "PENDING_IDENTIFICATION"],
+  PHOTO_COMPLETED: ["CONFIRMED", "NEEDS_REVIEW"],
+  CONFIRMED: ["NEEDS_REVIEW", "PENDING_IDENTIFICATION"],
+};
 
 const STORAGE_KEY = "forensic_entomology_batches";
 const SAMPLE_STORAGE_KEY = "forensic_entomology_samples";
@@ -79,6 +117,8 @@ export function loadSamples(): Sample[] {
       samplingLocation: s.samplingLocation || "",
       environmentTemperature: s.environmentTemperature || "",
       temperatureRecords: s.temperatureRecords || [],
+      status: s.status || "PENDING_IDENTIFICATION",
+      statusHistory: s.statusHistory || [],
     }));
   } catch {
     return [];
@@ -110,6 +150,41 @@ export function getSampleByNumber(samples: Sample[], sampleNumber: string): Samp
 
 export function generateTemperatureRecordId(): string {
   return "TEMP-" + Date.now().toString(36).toUpperCase() + "-" + Math.random().toString(36).slice(2, 6).toUpperCase();
+}
+
+export function generateStatusHistoryId(): string {
+  return "STATUS-" + Date.now().toString(36).toUpperCase() + "-" + Math.random().toString(36).slice(2, 6).toUpperCase();
+}
+
+export function getSamplesByStatus(samples: Sample[], status: SampleStatus): Sample[] {
+  return samples.filter((s) => s.status === status);
+}
+
+export function updateSampleStatus(
+  samples: Sample[],
+  sampleId: string,
+  newStatus: SampleStatus,
+  note: string,
+  operator: string = "系统管理员"
+): Sample[] {
+  const now = new Date().toISOString();
+  return samples.map((s) => {
+    if (s.id !== sampleId) return s;
+    const historyRecord: StatusHistoryRecord = {
+      id: generateStatusHistoryId(),
+      oldStatus: s.status,
+      newStatus,
+      timestamp: now,
+      operator,
+      note,
+    };
+    return {
+      ...s,
+      status: newStatus,
+      statusHistory: [...s.statusHistory, historyRecord],
+      updatedAt: now,
+    };
+  });
 }
 
 export function getSortedTemperatureRecords(records: TemperatureRecord[]): TemperatureRecord[] {

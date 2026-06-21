@@ -5,16 +5,21 @@ import BatchList from "./BatchList";
 import SampleDetail from "./SampleDetail";
 import DevelopmentStageFilter from "./DevelopmentStageFilter";
 import CaseAssociationWorkspace from "./CaseAssociationWorkspace";
+import IdentificationQueue from "./IdentificationQueue";
 import {
   SampleBatch,
   Sample,
+  SampleStatus,
+  StatusHistoryRecord,
   loadBatches,
   saveBatches,
   loadSamples,
   saveSamples,
   generateSampleId,
+  generateStatusHistoryId,
   getSampleById,
   updateSample,
+  updateSampleStatus,
   associateSampleToCase,
   unassociateSampleFromCase,
 } from "./batchStorage";
@@ -73,7 +78,7 @@ const project = {
   ]
 };
 
-type ViewMode = "list" | "detail" | "filter" | "association";
+type ViewMode = "list" | "detail" | "filter" | "association" | "queue";
 
 function App() {
   const [batches, setBatches] = useState<SampleBatch[]>([]);
@@ -99,20 +104,34 @@ function App() {
 
     if (loadedSamples.length === 0) {
       const now = new Date().toISOString();
-      const initialSamples: Sample[] = project.records.map((record, index) => ({
-        id: generateSampleId(),
-        sampleNumber: record[0],
-        insectSpecies: "",
-        developmentStage: index === 0 ? "幼虫三龄" : index === 1 ? "蛹" : "成虫",
-        preservationMethod: index === 0 ? "乙醇保存" : "",
-        identificationNotes: index === 1 ? "需复核种属" : index === 2 ? "已完成拍照" : "",
-        relatedCase: record[0].split("-").slice(0, 2).join("-"),
-        samplingLocation: recordData[record[0]]?.location || record[1] || "",
-        environmentTemperature: recordData[record[0]]?.temperature || extractTempFromRecordInfo(record[2]) || "",
-        temperatureRecords: [],
-        createdAt: now,
-        updatedAt: now,
-      }));
+      const initialStatuses: SampleStatus[] = ["PENDING_IDENTIFICATION", "NEEDS_REVIEW", "PHOTO_COMPLETED"];
+      const initialSamples: Sample[] = project.records.map((record, index) => {
+        const status: SampleStatus = initialStatuses[index] || "PENDING_IDENTIFICATION";
+        const statusHistory: StatusHistoryRecord[] = [{
+          id: generateStatusHistoryId(),
+          oldStatus: null,
+          newStatus: status,
+          timestamp: now,
+          operator: "系统初始化",
+          note: "样本创建，初始状态设置",
+        }];
+        return {
+          id: generateSampleId(),
+          sampleNumber: record[0],
+          insectSpecies: "",
+          developmentStage: index === 0 ? "幼虫三龄" : index === 1 ? "蛹" : "成虫",
+          preservationMethod: index === 0 ? "乙醇保存" : "",
+          identificationNotes: index === 1 ? "需复核种属" : index === 2 ? "已完成拍照" : "",
+          relatedCase: record[0].split("-").slice(0, 2).join("-"),
+          samplingLocation: recordData[record[0]]?.location || record[1] || "",
+          environmentTemperature: recordData[record[0]]?.temperature || extractTempFromRecordInfo(record[2]) || "",
+          temperatureRecords: [],
+          status,
+          statusHistory,
+          createdAt: now,
+          updatedAt: now,
+        };
+      });
       loadedSamples = initialSamples;
       saveSamples(initialSamples);
     } else {
@@ -148,6 +167,29 @@ function App() {
         }
         if (!newSample.temperatureRecords) {
           newSample.temperatureRecords = [];
+          changed = true;
+        }
+        if (!newSample.status) {
+          let inferredStatus: SampleStatus = "PENDING_IDENTIFICATION";
+          if (sample.identificationNotes?.includes("需复核种属")) {
+            inferredStatus = "NEEDS_REVIEW";
+          } else if (sample.identificationNotes?.includes("已完成拍照")) {
+            inferredStatus = "PHOTO_COMPLETED";
+          } else if (sample.identificationNotes?.includes("已确认")) {
+            inferredStatus = "CONFIRMED";
+          }
+          newSample.status = inferredStatus;
+          changed = true;
+        }
+        if (!newSample.statusHistory || newSample.statusHistory.length === 0) {
+          newSample.statusHistory = [{
+            id: generateStatusHistoryId(),
+            oldStatus: null,
+            newStatus: newSample.status,
+            timestamp: sample.createdAt || now,
+            operator: "数据迁移",
+            note: "系统自动推断初始状态",
+          }];
           changed = true;
         }
         if (changed) {
@@ -225,6 +267,22 @@ function App() {
     setSamples((prev) => unassociateSampleFromCase(prev, sampleId));
   };
 
+  const handleOpenQueue = () => {
+    setViewMode("queue");
+  };
+
+  const handleBackFromQueue = () => {
+    setViewMode("list");
+  };
+
+  const handleUpdateSampleStatus = (
+    sampleId: string,
+    newStatus: SampleStatus,
+    note: string
+  ) => {
+    setSamples((prev) => updateSampleStatus(prev, sampleId, newStatus, note));
+  };
+
   const totalSamples = batches.reduce((sum, b) => sum + b.sampleCount, 0);
   const avgTemp = batches.length > 0
     ? (
@@ -286,6 +344,19 @@ function App() {
     );
   }
 
+  if (viewMode === "queue") {
+    return (
+      <main className="app">
+        <IdentificationQueue
+          samples={samples}
+          onBack={handleBackFromQueue}
+          onViewDetail={handleViewDetail}
+          onUpdateStatus={handleUpdateSampleStatus}
+        />
+      </main>
+    );
+  }
+
   return (
     <main className="app">
       <section className="hero">
@@ -319,6 +390,15 @@ function App() {
               onClick={handleOpenAssociation}
             >
               📁 案件样本关联
+            </button>
+          </div>
+          <div className="association-entry" style={{ marginTop: "10px" }}>
+            <button
+              className="primary full-width"
+              onClick={handleOpenQueue}
+              style={{ background: "#a16207", borderColor: "#a16207" }}
+            >
+              🔬 鉴定复核队列
             </button>
           </div>
         </aside>
