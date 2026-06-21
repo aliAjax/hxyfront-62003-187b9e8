@@ -1,4 +1,12 @@
+import { useState, useEffect } from "react";
 import "./styles.css";
+import BatchForm from "./BatchForm";
+import BatchList from "./BatchList";
+import {
+  SampleBatch,
+  loadBatches,
+  saveBatches,
+} from "./batchStorage";
 
 const project = {
   "sourceNo": 5,
@@ -55,6 +63,45 @@ const project = {
 };
 
 function App() {
+  const [batches, setBatches] = useState<SampleBatch[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    setBatches(loadBatches());
+    setIsLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (isLoaded) {
+      saveBatches(batches);
+    }
+  }, [batches, isLoaded]);
+
+  const handleCreateBatch = (newBatch: SampleBatch) => {
+    setBatches((prev) => [newBatch, ...prev]);
+  };
+
+  const handleDeleteBatch = (id: string) => {
+    setBatches((prev) => prev.filter((b) => b.id !== id));
+  };
+
+  const totalSamples = batches.reduce((sum, b) => sum + b.sampleCount, 0);
+  const avgTemp = batches.length > 0
+    ? (
+        batches
+          .map((b) => parseFloat(b.environmentTemperature))
+          .filter((t) => !isNaN(t))
+          .reduce((sum, t, _, arr) => sum + t / arr.length, 0)
+      ).toFixed(1)
+    : "—";
+
+  const dynamicMetrics = [
+    { label: project.metrics[0], value: batches.length },
+    { label: project.metrics[1], value: avgTemp },
+    { label: project.metrics[2], value: new Set(batches.map((b) => b.exposureStage).filter(Boolean)).size },
+    { label: project.metrics[3], value: totalSamples },
+  ];
+
   return (
     <main className="app">
       <section className="hero">
@@ -64,10 +111,10 @@ function App() {
       </section>
 
       <section className="metrics">
-        {project.metrics.map((metric: string, index: number) => (
-          <article key={metric}>
-            <small>{metric}</small>
-            <strong>{[86, 14, 7, 32][index] ?? 12}</strong>
+        {dynamicMetrics.map((item, index: number) => (
+          <article key={item.label}>
+            <small>{item.label}</small>
+            <strong>{item.value}</strong>
           </article>
         ))}
       </section>
@@ -82,26 +129,12 @@ function App() {
           </div>
         </aside>
 
-        <section className="panel form-panel">
-          <div className="heading">
-            <div>
-              <p>专业字段</p>
-              <h2>新增记录</h2>
-            </div>
-            <button className="primary">保存草稿</button>
-          </div>
-          <div className="field-grid">
-            {project.fields.map((field: string) => (
-              <label key={field}>
-                <span>{field}</span>
-                <input placeholder={"填写" + field} />
-              </label>
-            ))}
-          </div>
-        </section>
+        <BatchForm onSubmit={handleCreateBatch} />
       </section>
 
-      <section className="panel">
+      {isLoaded && <BatchList batches={batches} onDelete={handleDeleteBatch} />}
+
+      <section className="panel" style={{ marginTop: "18px" }}>
         <div className="heading">
           <div>
             <p>历史记录</p>
