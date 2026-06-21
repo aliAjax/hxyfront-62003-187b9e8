@@ -144,3 +144,65 @@ export function isAbnormalTemperature(temperature: number): boolean {
 export function getSamplesByCase(samples: Sample[], caseNumber: string): Sample[] {
   return samples.filter((s) => s.relatedCase === caseNumber);
 }
+
+export function getAllCaseNumbers(batches: SampleBatch[], samples: Sample[]): string[] {
+  const caseSet = new Set<string>();
+  batches.forEach((b) => {
+    if (b.caseNumber.trim()) {
+      caseSet.add(b.caseNumber.trim());
+    }
+  });
+  samples.forEach((s) => {
+    if (s.relatedCase.trim()) {
+      caseSet.add(s.relatedCase.trim());
+    }
+  });
+  return Array.from(caseSet).sort();
+}
+
+export function getUnassociatedSamples(samples: Sample[]): Sample[] {
+  return samples.filter((s) => !s.relatedCase.trim());
+}
+
+export function getBatchesByCase(batches: SampleBatch[], caseNumber: string): SampleBatch[] {
+  return batches.filter((b) => b.caseNumber === caseNumber);
+}
+
+export interface CaseInfo {
+  caseNumber: string;
+  batches: SampleBatch[];
+  samples: Sample[];
+  totalSamples: number;
+  totalBatches: number;
+}
+
+export function buildCaseInfo(
+  batches: SampleBatch[],
+  samples: Sample[],
+  caseNumber: string
+): CaseInfo {
+  const caseBatches = getBatchesByCase(batches, caseNumber);
+  const caseSamples = getSamplesByCase(samples, caseNumber);
+  return {
+    caseNumber,
+    batches: caseBatches,
+    samples: caseSamples,
+    totalSamples: caseSamples.length,
+    totalBatches: caseBatches.length,
+  };
+}
+
+export function associateSampleToCase(
+  samples: Sample[],
+  sampleId: string,
+  caseNumber: string
+): Sample[] {
+  return updateSample(samples, sampleId, { relatedCase: caseNumber });
+}
+
+export function unassociateSampleFromCase(
+  samples: Sample[],
+  sampleId: string
+): Sample[] {
+  return updateSample(samples, sampleId, { relatedCase: "" });
+}

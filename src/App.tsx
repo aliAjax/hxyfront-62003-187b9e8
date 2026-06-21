@@ -4,6 +4,7 @@ import BatchForm from "./BatchForm";
 import BatchList from "./BatchList";
 import SampleDetail from "./SampleDetail";
 import DevelopmentStageFilter from "./DevelopmentStageFilter";
+import CaseAssociationWorkspace from "./CaseAssociationWorkspace";
 import {
   SampleBatch,
   Sample,
@@ -14,6 +15,8 @@ import {
   generateSampleId,
   getSampleById,
   updateSample,
+  associateSampleToCase,
+  unassociateSampleFromCase,
 } from "./batchStorage";
 
 const project = {
@@ -70,7 +73,7 @@ const project = {
   ]
 };
 
-type ViewMode = "list" | "detail" | "filter";
+type ViewMode = "list" | "detail" | "filter" | "association";
 
 function App() {
   const [batches, setBatches] = useState<SampleBatch[]>([]);
@@ -206,6 +209,22 @@ function App() {
     setViewMode("list");
   };
 
+  const handleOpenAssociation = () => {
+    setViewMode("association");
+  };
+
+  const handleBackFromAssociation = () => {
+    setViewMode("list");
+  };
+
+  const handleAssociateSample = (sampleId: string, caseNumber: string) => {
+    setSamples((prev) => associateSampleToCase(prev, sampleId, caseNumber));
+  };
+
+  const handleUnassociateSample = (sampleId: string) => {
+    setSamples((prev) => unassociateSampleFromCase(prev, sampleId));
+  };
+
   const totalSamples = batches.reduce((sum, b) => sum + b.sampleCount, 0);
   const avgTemp = batches.length > 0
     ? (
@@ -234,6 +253,21 @@ function App() {
           samples={samples}
           onBack={handleBackFromFilter}
           onViewDetail={handleViewDetail}
+        />
+      </main>
+    );
+  }
+
+  if (viewMode === "association") {
+    return (
+      <main className="app">
+        <CaseAssociationWorkspace
+          batches={batches}
+          samples={samples}
+          onBack={handleBackFromAssociation}
+          onAssociate={handleAssociateSample}
+          onUnassociate={handleUnassociateSample}
+          onViewSampleDetail={handleViewDetail}
         />
       </main>
     );
@@ -278,6 +312,14 @@ function App() {
                 {item}
               </button>
             ))}
+          </div>
+          <div className="association-entry" style={{ marginTop: "16px" }}>
+            <button
+              className="primary full-width"
+              onClick={handleOpenAssociation}
+            >
+              📁 案件样本关联
+            </button>
           </div>
         </aside>
 
