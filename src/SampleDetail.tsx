@@ -16,12 +16,46 @@ import {
 } from "./batchStorage";
 import TemperatureChart from "./TemperatureChart";
 
+const EDITABLE_BASE_FIELDS: (keyof Sample)[] = [
+  "sampleNumber",
+  "insectSpecies",
+  "developmentStage",
+  "preservationMethod",
+  "identificationNotes",
+  "relatedCase",
+  "samplingLocation",
+  "environmentTemperature",
+  "environmentHumidity",
+  "weatherCondition",
+  "exposureStage",
+  "exposureNotes",
+  "insectCount",
+  "insectCollectionMethod",
+  "preservationSolution",
+  "storageTemperature",
+];
+
 interface SampleDetailProps {
   sample: Sample;
   allSamples: Sample[];
   onBack: () => void;
   onSave: (updatedSample: Sample) => void;
   registerDirtyChecker?: (checker: () => boolean) => void;
+}
+
+function pickBaseFields(s: Sample): Partial<Sample> {
+  const result: Partial<Sample> = {};
+  for (const k of EDITABLE_BASE_FIELDS) {
+    result[k] = s[k];
+  }
+  return result;
+}
+
+function baseFieldsEqual(a: Sample, b: Sample): boolean {
+  for (const k of EDITABLE_BASE_FIELDS) {
+    if (a[k] !== b[k]) return false;
+  }
+  return true;
 }
 
 function deepEqualSample(a: Sample, b: Sample): boolean {
@@ -58,6 +92,7 @@ export default function SampleDetail({ sample, allSamples, onBack, onSave, regis
   const [formData, setFormData] = useState<Sample>(sample);
   const [hasChanges, setHasChanges] = useState(false);
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState<Sample>(sample);
+  const [editBaseSnapshot, setEditBaseSnapshot] = useState<Sample>(sample);
   const [newTempValue, setNewTempValue] = useState("");
   const [newTempTime, setNewTempTime] = useState("");
   const [newTempNote, setNewTempNote] = useState("");
@@ -70,21 +105,19 @@ export default function SampleDetail({ sample, allSamples, onBack, onSave, regis
     setFormData(sample);
     setHasChanges(false);
     setLastSavedSnapshot(sample);
+    setEditBaseSnapshot(sample);
     setIsEditing(false);
   }, [sample]);
 
   useEffect(() => {
-    const changed = Object.keys(formData).some(
-      (key) =>
-        formData[key as keyof Sample] !== sample[key as keyof Sample]
-    );
+    const changed = !baseFieldsEqual(formData, editBaseSnapshot);
     setHasChanges(changed);
-  }, [formData, sample]);
+  }, [formData, editBaseSnapshot]);
 
   useEffect(() => {
-    const unsaved = isEditing && !deepEqualSample(formData, lastSavedSnapshot);
+    const unsaved = isEditing && !baseFieldsEqual(formData, editBaseSnapshot);
     hasUnsavedChanges.current = unsaved;
-  }, [isEditing, formData, lastSavedSnapshot]);
+  }, [isEditing, formData, editBaseSnapshot]);
 
   useEffect(() => {
     if (registerDirtyChecker) {
@@ -132,6 +165,7 @@ export default function SampleDetail({ sample, allSamples, onBack, onSave, regis
     }
     onSave(formData);
     setLastSavedSnapshot(formData);
+    setEditBaseSnapshot(formData);
     setIsEditing(false);
   };
 
@@ -139,8 +173,16 @@ export default function SampleDetail({ sample, allSamples, onBack, onSave, regis
     if (!confirmDiscard("取消编辑将放弃所有未保存的修改，确定继续吗？")) {
       return;
     }
-    setFormData(lastSavedSnapshot);
+    setFormData((prev) => ({
+      ...prev,
+      ...pickBaseFields(editBaseSnapshot),
+    }));
     setIsEditing(false);
+  };
+
+  const handleEnterEdit = () => {
+    setEditBaseSnapshot(formData);
+    setIsEditing(true);
   };
 
   const handleBack = () => {
@@ -295,7 +337,7 @@ export default function SampleDetail({ sample, allSamples, onBack, onSave, regis
               </button>
             </>
           ) : (
-            <button className="primary" onClick={() => setIsEditing(true)}>
+            <button className="primary" onClick={handleEnterEdit}>
               ✏️ 编辑
             </button>
           )}
