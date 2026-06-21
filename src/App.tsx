@@ -244,6 +244,7 @@ function App() {
       <main className="app">
         <SampleDetail
           sample={selectedSample}
+          allSamples={samples}
           onBack={handleBackToList}
           onSave={handleSaveSample}
         />

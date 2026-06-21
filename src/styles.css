@@ -1239,3 +1239,159 @@ input:focus,
     width: 100%;
   }
 }
+
+.temp-saved-feedback {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: color-mix(in srgb, #059669 10%, #ffffff);
+  border: 1px solid color-mix(in srgb, #059669 25%, var(--border));
+  border-radius: 8px;
+  color: #065f46;
+  font-size: 13px;
+  font-weight: 500;
+  animation: feedbackFadeIn 0.3s ease;
+}
+
+@keyframes feedbackFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 10px 0;
+  margin-bottom: 4px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-color {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.legend-label {
+  font-size: 13px;
+  color: #334155;
+  font-weight: 500;
+}
+
+.case-temp-section {
+  border-top: 3px solid var(--secondary);
+}
+
+.case-temp-samples {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.case-sample-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.case-sample-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.case-sample-number {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.case-sample-location {
+  font-size: 12px;
+  color: #64748b;
+  background: #ffffff;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.case-sample-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.case-stat {
+  font-size: 12px;
+  color: #475569;
+  font-weight: 500;
+  padding: 3px 8px;
+  background: #ffffff;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.case-sample-records {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.case-record-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.case-record-chip.abnormal {
+  background: color-mix(in srgb, #dc2626 5%, #ffffff);
+  border-color: color-mix(in srgb, #dc2626 20%, var(--border));
+}
+
+.case-record-temp {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.case-record-time {
+  color: #94a3b8;
+}
+
+.case-aggregate-stats {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+@media (max-width: 720px) {
+  .case-temp-samples {
+    grid-template-columns: 1fr;
+  }
+}

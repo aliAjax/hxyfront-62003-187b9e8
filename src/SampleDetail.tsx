@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Sample,
   TemperatureRecord,
@@ -6,11 +6,14 @@ import {
   generateTemperatureRecordId,
   getSortedTemperatureRecords,
   isAbnormalTemperature,
+  getSamplesByCase,
+  calculateTemperatureStats,
 } from "./batchStorage";
 import TemperatureChart from "./TemperatureChart";
 
 interface SampleDetailProps {
   sample: Sample;
+  allSamples: Sample[];
   onBack: () => void;
   onSave: (updatedSample: Sample) => void;
 }
@@ -33,7 +36,7 @@ const PRESERVATION_METHODS = [
   "其他",
 ];
 
-export default function SampleDetail({ sample, onBack, onSave }: SampleDetailProps) {
+export default function SampleDetail({ sample, allSamples, onBack, onSave }: SampleDetailProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Sample>(sample);
   const [hasChanges, setHasChanges] = useState(false);
@@ -41,6 +44,7 @@ export default function SampleDetail({ sample, onBack, onSave }: SampleDetailPro
   const [newTempTime, setNewTempTime] = useState("");
   const [newTempNote, setNewTempNote] = useState("");
   const [tempWarning, setTempWarning] = useState("");
+  const [tempSavedFeedback, setTempSavedFeedback] = useState("");
 
   useEffect(() => {
     setFormData(sample);
@@ -54,6 +58,10 @@ export default function SampleDetail({ sample, onBack, onSave }: SampleDetailPro
     );
     setHasChanges(changed);
   }, [formData, sample]);
+
+  const persistSample = useCallback((updated: Sample) => {
+    onSave(updated);
+  }, [onSave]);
 
   const handleChange = (field: keyof Sample, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -113,27 +121,40 @@ export default function SampleDetail({ sample, onBack, onSave }: SampleDetailPro
       note: newTempNote.trim() || undefined,
     };
 
-    setFormData((prev) => ({
-      ...prev,
-      temperatureRecords: [...prev.temperatureRecords, newRecord],
-    }));
-    setHasChanges(true);
+    const updated: Sample = {
+      ...formData,
+      temperatureRecords: [...formData.temperatureRecords, newRecord],
+    };
+    setFormData(updated);
+    persistSample(updated);
 
     setNewTempValue("");
     setNewTempTime("");
     setNewTempNote("");
     setTempWarning("");
+    setTempSavedFeedback("温度记录已保存");
+    setTimeout(() => setTempSavedFeedback(""), 2000);
   };
 
   const handleDeleteTempRecord = (id: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      temperatureRecords: prev.temperatureRecords.filter((r) => r.id !== id),
-    }));
-    setHasChanges(true);
+    const updated: Sample = {
+      ...formData,
+      temperatureRecords: formData.temperatureRecords.filter((r) => r.id !== id),
+    };
+    setFormData(updated);
+    persistSample(updated);
   };
 
   const sortedTempRecords = getSortedTemperatureRecords(formData.temperatureRecords);
+
+  const caseSamples = getSamplesByCase(allSamples, formData.relatedCase)
+    .filter((s) => s.id !== formData.id);
+  const caseAllRecords = caseSamples.flatMap((s) =>
+    s.temperatureRecords.map((r) => ({ ...r, sampleNumber: s.sampleNumber }))
+  );
+  const caseStats = calculateTemperatureStats(
+    caseSamples.flatMap((s) => s.temperatureRecords)
+  );
 
   const InfoItem = ({
     label,
@@ -341,6 +362,11 @@ export default function SampleDetail({ sample, onBack, onSave }: SampleDetailPro
                 ⚠️ {tempWarning}
               </div>
             )}
+            {tempSavedFeedback && (
+              <div className="temp-saved-feedback">
+                ✓ {tempSavedFeedback}
+              </div>
+            )}
           </div>
 
           <TemperatureChart records={formData.temperatureRecords} />
@@ -385,6 +411,117 @@ export default function SampleDetail({ sample, onBack, onSave }: SampleDetailPro
             </div>
           )}
         </div>
+
+        {caseSamples.length > 0 && caseAllRecords.length > 0 && (
+          <div className="detail-section case-temp-section">
+            <div className="chart-header">
+              <h3 className="section-title">📁 同案温度汇总 · {formData.relatedCase}</h3>
+              <span className="chart-record-count">
+                {caseSamples.length} 个样本 · {caseAllRecords.length} 条记录
+              </span>
+            </div>
+
+            <TemperatureChart
+              records={caseAllRecords.map(({ sampleNumber: _sn, ...r }) => r)}
+              series={caseSamples.map((s) => ({
+                sampleNumber: s.sampleNumber,
+                records: s.temperatureRecords,
+              }))}
+              title=""
+            />
+
+            <div className="case-temp-samples">
+              {caseSamples.map((s) => {
+                const sRecords = getSortedTemperatureRecords(s.temperatureRecords);
+                const sStats = calculateTemperatureStats(s.temperatureRecords);
+                return (
+                  <div key={s.id} className="case-sample-card">
+                    <div className="case-sample-header">
+                      <span className="case-sample-number">{s.sampleNumber}</span>
+                      <span className="case-sample-location">
+                        {s.samplingLocation || "未设置地点"}
+                      </span>
+                    </div>
+                    <div className="case-sample-stats">
+                      <span className="case-stat">
+                        {sStats.count} 条记录
+                      </span>
+                      {sStats.max !== null && (
+                        <span className="case-stat">
+                          最高 {sStats.max.toFixed(1)}℃
+                        </span>
+                      )}
+                      {sStats.min !== null && (
+                        <span className="case-stat">
+                          最低 {sStats.min.toFixed(1)}℃
+                        </span>
+                      )}
+                      {sStats.avg !== null && (
+                        <span className="case-stat">
+                          均温 {sStats.avg.toFixed(1)}℃
+                        </span>
+                      )}
+                    </div>
+                    {sRecords.length > 0 && (
+                      <div className="case-sample-records">
+                        {sRecords.map((r) => {
+                          const t = parseFloat(r.temperature);
+                          const abn = !isNaN(t) && isAbnormalTemperature(t);
+                          return (
+                            <div
+                              key={r.id}
+                              className={`case-record-chip ${abn ? "abnormal" : ""}`}
+                            >
+                              <span className="case-record-temp">
+                                {r.temperature}℃
+                              </span>
+                              <span className="case-record-time">
+                                {formatDateTime(r.timestamp)}
+                              </span>
+                              {abn && (
+                                <span className="temp-abnormal-tag">异常</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {caseStats.max !== null && (
+              <div className="case-aggregate-stats">
+                <h4 className="temp-list-title">案件温度总览</h4>
+                <div className="temperature-stats">
+                  <div className="stat-card stat-max">
+                    <span className="stat-label">最高温</span>
+                    <span className="stat-value">
+                      {caseStats.max.toFixed(1)}℃
+                    </span>
+                  </div>
+                  <div className="stat-card stat-min">
+                    <span className="stat-label">最低温</span>
+                    <span className="stat-value">
+                      {caseStats.min !== null ? `${caseStats.min.toFixed(1)}℃` : "—"}
+                    </span>
+                  </div>
+                  <div className="stat-card stat-avg">
+                    <span className="stat-label">平均温度</span>
+                    <span className="stat-value">
+                      {caseStats.avg !== null ? `${caseStats.avg.toFixed(1)}℃` : "—"}
+                    </span>
+                  </div>
+                  <div className="stat-card stat-count">
+                    <span className="stat-label">总记录</span>
+                    <span className="stat-value">{caseStats.count}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
