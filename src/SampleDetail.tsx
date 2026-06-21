@@ -148,7 +148,7 @@ export default function SampleDetail({ sample, allSamples, onBack, onSave }: Sam
   const sortedTempRecords = getSortedTemperatureRecords(formData.temperatureRecords);
 
   const caseSamples = getSamplesByCase(allSamples, formData.relatedCase)
-    .filter((s) => s.id !== formData.id);
+    .map((s) => (s.id === formData.id ? formData : s));
   const caseAllRecords = caseSamples.flatMap((s) =>
     s.temperatureRecords.map((r) => ({ ...r, sampleNumber: s.sampleNumber }))
   );
