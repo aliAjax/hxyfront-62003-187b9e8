@@ -1,5 +1,9 @@
 import { useState, useMemo } from "react";
-import { Sample, PRESERVATION_METHODS } from "./batchStorage";
+import {
+  Sample,
+  PRESERVATION_METHODS,
+  SAMPLE_STATUS_LABELS,
+} from "./batchStorage";
 
 interface DevelopmentStageFilterProps {
   samples: Sample[];
@@ -28,11 +32,11 @@ const EMPTY_ICONS: Record<string, string> = {
 };
 
 function isPendingReview(sample: Sample): boolean {
-  return (
-    sample.identificationNotes.includes("需复核") ||
-    sample.identificationNotes.includes("复核") ||
-    sample.identificationNotes.includes("待复核")
-  );
+  return sample.status === "NEEDS_REVIEW";
+}
+
+function isConfirmed(sample: Sample): boolean {
+  return sample.status === "CONFIRMED";
 }
 
 function matchDevelopmentStage(
@@ -69,9 +73,10 @@ export default function DevelopmentStageFilter({
         return false;
       }
       if (reviewStatusFilter !== "all") {
-        const pending = isPendingReview(sample);
-        if (reviewStatusFilter === "pending" && !pending) return false;
-        if (reviewStatusFilter === "confirmed" && pending) return false;
+        if (reviewStatusFilter === "pending" && !isPendingReview(sample))
+          return false;
+        if (reviewStatusFilter === "confirmed" && !isConfirmed(sample))
+          return false;
       }
       return true;
     });
@@ -81,6 +86,7 @@ export default function DevelopmentStageFilter({
     return filteredSamples.map((sample) => ({
       sample,
       pendingReview: isPendingReview(sample),
+      statusLabel: SAMPLE_STATUS_LABELS[sample.status],
     }));
   }, [filteredSamples]);
 
@@ -196,7 +202,7 @@ export default function DevelopmentStageFilter({
         </div>
       ) : (
         <div className="sample-card-grid">
-          {sampleCards.map(({ sample, pendingReview }) => (
+          {sampleCards.map(({ sample, pendingReview, statusLabel }) => (
             <article
               key={sample.id}
               className="sample-filter-card"
@@ -246,7 +252,7 @@ export default function DevelopmentStageFilter({
                       pendingReview ? "status-pending" : "status-normal"
                     }`}
                   >
-                    {pendingReview ? "待复核" : "已确认"}
+                    {statusLabel}
                   </span>
                 </div>
               </div>
