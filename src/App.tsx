@@ -25,6 +25,7 @@ import {
   getAllCaseNumbers,
 } from "./batchStorage";
 import SampleFormWizard from "./SampleFormWizard";
+import SampleExportSummary from "./SampleExportSummary";
 
 const project = {
   "sourceNo": 5,
@@ -80,7 +81,7 @@ const project = {
   ]
 };
 
-type ViewMode = "list" | "detail" | "filter" | "association" | "queue" | "wizard";
+type ViewMode = "list" | "detail" | "filter" | "association" | "queue" | "wizard" | "export";
 
 function App() {
   const [batches, setBatches] = useState<SampleBatch[]>([]);
@@ -309,6 +310,14 @@ function App() {
     setViewMode("list");
   };
 
+  const handleOpenExport = () => {
+    setViewMode("export");
+  };
+
+  const handleBackFromExport = () => {
+    setViewMode("list");
+  };
+
   const totalSamples = batches.reduce((sum, b) => sum + b.sampleCount, 0);
   const avgTemp = batches.length > 0
     ? (
@@ -395,6 +404,18 @@ function App() {
     );
   }
 
+  if (viewMode === "export") {
+    return (
+      <main className="app">
+        <SampleExportSummary
+          samples={samples}
+          batches={batches}
+          onBack={handleBackFromExport}
+        />
+      </main>
+    );
+  }
+
   return (
     <main className="app">
       <section className="hero">
@@ -448,6 +469,15 @@ function App() {
               📋 现场采样表单向导
             </button>
           </div>
+          <div className="association-entry" style={{ marginTop: "10px" }}>
+            <button
+              className="primary full-width"
+              onClick={handleOpenExport}
+              style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+            >
+              📤 样本导出摘要
+            </button>
+          </div>
         </aside>
 
         <BatchForm onSubmit={handleCreateBatch} />
@@ -461,7 +491,7 @@ function App() {
             <p>历史记录</p>
             <h2>近期工作台</h2>
           </div>
-          <button>导出摘要</button>
+          <button onClick={handleOpenExport}>导出摘要</button>
         </div>
         <div className="records">
           {samples.map((sample, index: number) => (
