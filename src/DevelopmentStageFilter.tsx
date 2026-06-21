@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Sample } from "./batchStorage";
+import { Sample, PRESERVATION_METHODS } from "./batchStorage";
 
 interface DevelopmentStageFilterProps {
   samples: Sample[];
@@ -12,6 +12,12 @@ const STAGE_FILTERS = [
   { key: "幼虫", label: "幼虫", icon: "🐛" },
   { key: "蛹", label: "蛹", icon: "🦋" },
   { key: "成虫", label: "成虫", icon: "🪰" },
+];
+
+const REVIEW_STATUS_OPTIONS = [
+  { key: "all", label: "全部状态" },
+  { key: "pending", label: "待复核" },
+  { key: "confirmed", label: "已确认" },
 ];
 
 const EMPTY_ICONS: Record<string, string> = {
@@ -46,12 +52,30 @@ export default function DevelopmentStageFilter({
   onViewDetail,
 }: DevelopmentStageFilterProps) {
   const [activeFilter, setActiveFilter] = useState<string>("卵");
+  const [preservationFilter, setPreservationFilter] = useState<string>("");
+  const [reviewStatusFilter, setReviewStatusFilter] = useState<string>("all");
+
+  const hasActiveFilters = preservationFilter || reviewStatusFilter !== "all";
 
   const filteredSamples = useMemo(() => {
-    return samples.filter((sample) =>
-      matchDevelopmentStage(sample.developmentStage, activeFilter)
-    );
-  }, [samples, activeFilter]);
+    return samples.filter((sample) => {
+      if (!matchDevelopmentStage(sample.developmentStage, activeFilter)) {
+        return false;
+      }
+      if (
+        preservationFilter &&
+        sample.preservationMethod !== preservationFilter
+      ) {
+        return false;
+      }
+      if (reviewStatusFilter !== "all") {
+        const pending = isPendingReview(sample);
+        if (reviewStatusFilter === "pending" && !pending) return false;
+        if (reviewStatusFilter === "confirmed" && pending) return false;
+      }
+      return true;
+    });
+  }, [samples, activeFilter, preservationFilter, reviewStatusFilter]);
 
   const sampleCards = useMemo(() => {
     return filteredSamples.map((sample) => ({
@@ -59,6 +83,24 @@ export default function DevelopmentStageFilter({
       pendingReview: isPendingReview(sample),
     }));
   }, [filteredSamples]);
+
+  const handleClearFilters = () => {
+    setPreservationFilter("");
+    setReviewStatusFilter("all");
+  };
+
+  const getFilterDescription = () => {
+    const parts: string[] = [];
+    if (preservationFilter) {
+      parts.push(`保存方式：${preservationFilter}`);
+    }
+    if (reviewStatusFilter === "pending") {
+      parts.push("状态：待复核");
+    } else if (reviewStatusFilter === "confirmed") {
+      parts.push("状态：已确认");
+    }
+    return parts.join(" · ");
+  };
 
   return (
     <div className="filter-page">
@@ -85,16 +127,72 @@ export default function DevelopmentStageFilter({
         ))}
       </div>
 
+      <div className="secondary-filter-bar">
+        <div className="filter-group">
+          <label className="filter-label">保存方式</label>
+          <select
+            className="filter-select"
+            value={preservationFilter}
+            onChange={(e) => setPreservationFilter(e.target.value)}
+          >
+            <option value="">全部保存方式</option>
+            {PRESERVATION_METHODS.map((method) => (
+              <option key={method} value={method}>
+                {method}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="filter-group">
+          <label className="filter-label">复核状态</label>
+          <select
+            className="filter-select"
+            value={reviewStatusFilter}
+            onChange={(e) => setReviewStatusFilter(e.target.value)}
+          >
+            {REVIEW_STATUS_OPTIONS.map((opt) => (
+              <option key={opt.key} value={opt.key}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        {hasActiveFilters && (
+          <button
+            className="clear-filters-button"
+            onClick={handleClearFilters}
+            title="清空筛选条件"
+          >
+            ✕ 清空筛选
+          </button>
+        )}
+      </div>
+
       <div className="filter-results-info">
         共找到 <strong>{filteredSamples.length}</strong> 个
         <strong>{activeFilter}</strong> 阶段样本
+        {hasActiveFilters && (
+          <span className="filter-active-tags"> · {getFilterDescription()}</span>
+        )}
       </div>
 
       {sampleCards.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">{EMPTY_ICONS[activeFilter]}</div>
-          <h3>暂无{activeFilter}阶段样本</h3>
-          <p>当前筛选条件下没有匹配的样本，请尝试其他发育阶段</p>
+          <h3>暂无匹配的{activeFilter}阶段样本</h3>
+          <p>
+            {hasActiveFilters
+              ? `当前筛选条件（${getFilterDescription()}）下没有匹配的样本，请尝试调整筛选条件或选择其他发育阶段`
+              : `当前筛选条件下没有匹配的样本，请尝试其他发育阶段`}
+          </p>
+          {hasActiveFilters && (
+            <button
+              className="primary clear-empty-filters"
+              onClick={handleClearFilters}
+            >
+              清除二级筛选条件
+            </button>
+          )}
         </div>
       ) : (
         <div className="sample-card-grid">
