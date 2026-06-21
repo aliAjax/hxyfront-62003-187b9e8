@@ -1,9 +1,13 @@
 import { useState, useEffect } from "react";
 import {
   Sample,
+  TemperatureRecord,
   formatDateTime,
-  updateSample,
+  generateTemperatureRecordId,
+  getSortedTemperatureRecords,
+  isAbnormalTemperature,
 } from "./batchStorage";
+import TemperatureChart from "./TemperatureChart";
 
 interface SampleDetailProps {
   sample: Sample;
@@ -33,6 +37,10 @@ export default function SampleDetail({ sample, onBack, onSave }: SampleDetailPro
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Sample>(sample);
   const [hasChanges, setHasChanges] = useState(false);
+  const [newTempValue, setNewTempValue] = useState("");
+  const [newTempTime, setNewTempTime] = useState("");
+  const [newTempNote, setNewTempNote] = useState("");
+  const [tempWarning, setTempWarning] = useState("");
 
   useEffect(() => {
     setFormData(sample);
@@ -65,6 +73,67 @@ export default function SampleDetail({ sample, onBack, onSave }: SampleDetailPro
     setIsEditing(false);
     setHasChanges(false);
   };
+
+  const handleTempValueChange = (value: string) => {
+    setNewTempValue(value);
+    const temp = parseFloat(value);
+    if (!isNaN(temp) && isAbnormalTemperature(temp)) {
+      setTempWarning("温度值异常（低于-10℃或高于50℃），请确认是否正确");
+    } else {
+      setTempWarning("");
+    }
+  };
+
+  const handleAddTempRecord = () => {
+    if (!newTempValue.trim()) {
+      alert("请输入温度值");
+      return;
+    }
+    const temp = parseFloat(newTempValue);
+    if (isNaN(temp)) {
+      alert("请输入有效的温度数值");
+      return;
+    }
+
+    const timestamp = newTempTime || new Date().toISOString();
+
+    if (isAbnormalTemperature(temp)) {
+      const confirmed = confirm(
+        `温度值 ${temp}℃ 异常（正常范围 -10℃ ~ 50℃），是否仍然保存？`
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    const newRecord: TemperatureRecord = {
+      id: generateTemperatureRecordId(),
+      timestamp: new Date(timestamp).toISOString(),
+      temperature: newTempValue.trim(),
+      note: newTempNote.trim() || undefined,
+    };
+
+    setFormData((prev) => ({
+      ...prev,
+      temperatureRecords: [...prev.temperatureRecords, newRecord],
+    }));
+    setHasChanges(true);
+
+    setNewTempValue("");
+    setNewTempTime("");
+    setNewTempNote("");
+    setTempWarning("");
+  };
+
+  const handleDeleteTempRecord = (id: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      temperatureRecords: prev.temperatureRecords.filter((r) => r.id !== id),
+    }));
+    setHasChanges(true);
+  };
+
+  const sortedTempRecords = getSortedTemperatureRecords(formData.temperatureRecords);
 
   const InfoItem = ({
     label,
@@ -216,6 +285,105 @@ export default function SampleDetail({ sample, onBack, onSave }: SampleDetailPro
             field="identificationNotes"
             type="textarea"
           />
+        </div>
+
+        <div className="detail-section">
+          <div className="chart-header">
+            <h3 className="section-title">🌡️ 温度记录图</h3>
+            <span className="chart-record-count">
+              共 {sortedTempRecords.length} 条记录
+            </span>
+          </div>
+
+          <div className="temp-input-section">
+            <div className="temp-input-row">
+              <div className="temp-input-item">
+                <label className="temp-input-label">温度值 (℃)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  className="temp-input"
+                  value={newTempValue}
+                  onChange={(e) => handleTempValueChange(e.target.value)}
+                  placeholder="例如: 25.6"
+                />
+              </div>
+              <div className="temp-input-item">
+                <label className="temp-input-label">记录时间</label>
+                <input
+                  type="datetime-local"
+                  className="temp-input"
+                  value={newTempTime}
+                  onChange={(e) => setNewTempTime(e.target.value)}
+                />
+              </div>
+              <div className="temp-input-item">
+                <label className="temp-input-label">备注</label>
+                <input
+                  type="text"
+                  className="temp-input"
+                  value={newTempNote}
+                  onChange={(e) => setNewTempNote(e.target.value)}
+                  placeholder="可选"
+                />
+              </div>
+              <div className="temp-input-item temp-add-btn-wrapper">
+                <button
+                  className="primary temp-add-btn"
+                  onClick={handleAddTempRecord}
+                >
+                  + 添加记录
+                </button>
+              </div>
+            </div>
+            {tempWarning && (
+              <div className="temp-warning">
+                ⚠️ {tempWarning}
+              </div>
+            )}
+          </div>
+
+          <TemperatureChart records={formData.temperatureRecords} />
+
+          {sortedTempRecords.length > 0 && (
+            <div className="temp-records-list">
+              <h4 className="temp-list-title">记录明细</h4>
+              <div className="temp-record-items">
+                {sortedTempRecords.map((record) => {
+                  const temp = parseFloat(record.temperature);
+                  const isAbnormal = !isNaN(temp) && isAbnormalTemperature(temp);
+                  return (
+                    <div
+                      key={record.id}
+                      className={`temp-record-item ${isAbnormal ? "abnormal" : ""}`}
+                    >
+                      <div className="temp-record-time">
+                        {formatDateTime(record.timestamp)}
+                      </div>
+                      <div className="temp-record-value">
+                        <span className="temp-number">
+                          {record.temperature}℃
+                        </span>
+                        {isAbnormal && (
+                          <span className="temp-abnormal-tag">异常</span>
+                        )}
+                      </div>
+                      {record.note && (
+                        <div className="temp-record-note">{record.note}</div>
+                      )}
+                      <button
+                        className="temp-delete-btn"
+                        onClick={() => handleDeleteTempRecord(record.id)}
+                        title="删除记录"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

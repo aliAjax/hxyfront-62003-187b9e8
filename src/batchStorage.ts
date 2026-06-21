@@ -11,6 +11,13 @@ export interface SampleBatch {
   updatedAt: string;
 }
 
+export interface TemperatureRecord {
+  id: string;
+  timestamp: string;
+  temperature: string;
+  note?: string;
+}
+
 export interface Sample {
   id: string;
   sampleNumber: string;
@@ -21,6 +28,7 @@ export interface Sample {
   relatedCase: string;
   samplingLocation: string;
   environmentTemperature: string;
+  temperatureRecords: TemperatureRecord[];
   createdAt: string;
   updatedAt: string;
 }
@@ -70,6 +78,7 @@ export function loadSamples(): Sample[] {
       ...s,
       samplingLocation: s.samplingLocation || "",
       environmentTemperature: s.environmentTemperature || "",
+      temperatureRecords: s.temperatureRecords || [],
     }));
   } catch {
     return [];
@@ -97,4 +106,41 @@ export function updateSample(samples: Sample[], id: string, updates: Partial<Sam
 
 export function getSampleByNumber(samples: Sample[], sampleNumber: string): Sample | undefined {
   return samples.find((s) => s.sampleNumber === sampleNumber);
+}
+
+export function generateTemperatureRecordId(): string {
+  return "TEMP-" + Date.now().toString(36).toUpperCase() + "-" + Math.random().toString(36).slice(2, 6).toUpperCase();
+}
+
+export function getSortedTemperatureRecords(records: TemperatureRecord[]): TemperatureRecord[] {
+  return [...records].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+}
+
+export function calculateTemperatureStats(records: TemperatureRecord[]): {
+  max: number | null;
+  min: number | null;
+  avg: number | null;
+  count: number;
+} {
+  const validTemps = records
+    .map((r) => parseFloat(r.temperature))
+    .filter((t) => !isNaN(t));
+
+  if (validTemps.length === 0) {
+    return { max: null, min: null, avg: null, count: 0 };
+  }
+
+  const max = Math.max(...validTemps);
+  const min = Math.min(...validTemps);
+  const avg = validTemps.reduce((sum, t) => sum + t, 0) / validTemps.length;
+
+  return { max, min, avg, count: validTemps.length };
+}
+
+export function isAbnormalTemperature(temperature: number): boolean {
+  return temperature < -10 || temperature > 50;
+}
+
+export function getSamplesByCase(samples: Sample[], caseNumber: string): Sample[] {
+  return samples.filter((s) => s.relatedCase === caseNumber);
 }

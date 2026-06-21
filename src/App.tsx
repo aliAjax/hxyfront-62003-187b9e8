@@ -106,6 +106,7 @@ function App() {
         relatedCase: record[0].split("-").slice(0, 2).join("-"),
         samplingLocation: recordData[record[0]]?.location || record[1] || "",
         environmentTemperature: recordData[record[0]]?.temperature || extractTempFromRecordInfo(record[2]) || "",
+        temperatureRecords: [],
         createdAt: now,
         updatedAt: now,
       }));
@@ -141,6 +142,10 @@ function App() {
               changed = true;
             }
           }
+        }
+        if (!newSample.temperatureRecords) {
+          newSample.temperatureRecords = [];
+          changed = true;
         }
         if (changed) {
           newSample.updatedAt = now;

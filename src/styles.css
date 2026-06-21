@@ -936,3 +936,306 @@ input:focus,
     font-size: 20px;
   }
 }
+
+.temperature-chart-container {
+  display: grid;
+  gap: 16px;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.chart-record-count {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.chart-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #64748b;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 2px dashed #e2e8f0;
+}
+
+.chart-empty .empty-icon {
+  font-size: 48px;
+  margin-bottom: 10px;
+}
+
+.chart-empty p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.chart-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  background: #fafbfc;
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.temperature-svg {
+  width: 100%;
+  height: auto;
+  min-height: 240px;
+}
+
+.chart-axis-text {
+  font-size: 11px;
+  fill: #64748b;
+  font-family: inherit;
+}
+
+.chart-point {
+  cursor: pointer;
+  transition: r 0.2s;
+}
+
+.chart-point:hover {
+  r: 8;
+}
+
+.temperature-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.stat-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px;
+  display: grid;
+  gap: 6px;
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.stat-max .stat-value {
+  color: #dc2626;
+}
+
+.stat-min .stat-value {
+  color: #2563eb;
+}
+
+.stat-avg .stat-value {
+  color: #365314;
+}
+
+.stat-count .stat-value {
+  color: #a16207;
+}
+
+.temp-input-section {
+  margin-bottom: 18px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.temp-input-row {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.temp-input-item {
+  display: grid;
+  gap: 6px;
+}
+
+.temp-input-label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.temp-input {
+  width: 100%;
+  min-height: 40px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  padding: 0 12px;
+  background: #ffffff;
+  color: #172033;
+  font-size: 14px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.temp-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.temp-add-btn-wrapper {
+  display: flex;
+  align-items: flex-end;
+}
+
+.temp-add-btn {
+  min-height: 40px;
+  white-space: nowrap;
+}
+
+.temp-warning {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: color-mix(in srgb, #f59e0b 12%, #ffffff);
+  border: 1px solid color-mix(in srgb, #f59e0b 30%, var(--border));
+  border-radius: 8px;
+  color: #92400e;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.temp-records-list {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.temp-list-title {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #334155;
+  font-weight: 600;
+}
+
+.temp-record-items {
+  display: grid;
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.temp-record-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 4px 12px;
+  align-items: center;
+  padding: 10px 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.temp-record-item:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.temp-record-item.abnormal {
+  background: color-mix(in srgb, #dc2626 6%, #ffffff);
+  border-color: color-mix(in srgb, #dc2626 25%, var(--border));
+}
+
+.temp-record-time {
+  grid-column: 1;
+  grid-row: 1 / -1;
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.temp-record-value {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.temp-number {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.temp-abnormal-tag {
+  padding: 2px 8px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+}
+
+.temp-record-note {
+  grid-column: 2;
+  grid-row: 2;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.temp-delete-btn {
+  grid-column: 3;
+  grid-row: 1 / -1;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  transition: all 0.15s;
+}
+
+.temp-delete-btn:hover {
+  background: color-mix(in srgb, #dc2626 12%, transparent);
+  color: #dc2626;
+}
+
+@media (max-width: 720px) {
+  .temperature-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .temp-input-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .temp-add-btn-wrapper {
+    grid-column: 1 / -1;
+  }
+
+  .temp-add-btn {
+    width: 100%;
+  }
+}
