@@ -439,7 +439,11 @@ export const WIZARD_STEPS = [
   { key: "preview", title: "预览提交", icon: "✅" },
 ];
 
-export const REQUIRED_FIELDS: Array<{ key: keyof SampleFormDraft; label: string }> = [
+type StringDraftField = {
+  [K in keyof SampleFormDraft]: SampleFormDraft[K] extends string ? K : never;
+}[keyof SampleFormDraft];
+
+export const REQUIRED_FIELDS: Array<{ key: StringDraftField; label: string }> = [
   { key: "sampleNumber", label: "样本编号" },
   { key: "samplingLocation", label: "采样地点" },
   { key: "exposureStage", label: "尸体暴露阶段" },
