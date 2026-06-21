@@ -22,7 +22,9 @@ import {
   updateSampleStatus,
   associateSampleToCase,
   unassociateSampleFromCase,
+  getAllCaseNumbers,
 } from "./batchStorage";
+import SampleFormWizard from "./SampleFormWizard";
 
 const project = {
   "sourceNo": 5,
@@ -78,7 +80,7 @@ const project = {
   ]
 };
 
-type ViewMode = "list" | "detail" | "filter" | "association" | "queue";
+type ViewMode = "list" | "detail" | "filter" | "association" | "queue" | "wizard";
 
 function App() {
   const [batches, setBatches] = useState<SampleBatch[]>([]);
@@ -285,6 +287,20 @@ function App() {
     setSamples((prev) => updateSampleStatus(prev, sampleId, newStatus, note));
   };
 
+  const handleOpenWizard = () => {
+    setPreviousViewMode(viewMode);
+    setViewMode("wizard");
+  };
+
+  const handleBackFromWizard = () => {
+    setViewMode(previousViewMode);
+  };
+
+  const handleCreateSampleFromWizard = (newSample: Sample) => {
+    setSamples((prev) => [newSample, ...prev]);
+    setViewMode("list");
+  };
+
   const totalSamples = batches.reduce((sum, b) => sum + b.sampleCount, 0);
   const avgTemp = batches.length > 0
     ? (
@@ -359,6 +375,18 @@ function App() {
     );
   }
 
+  if (viewMode === "wizard") {
+    return (
+      <main className="app">
+        <SampleFormWizard
+          onBack={handleBackFromWizard}
+          onSubmit={handleCreateSampleFromWizard}
+          existingCaseNumbers={getAllCaseNumbers(batches, samples)}
+        />
+      </main>
+    );
+  }
+
   return (
     <main className="app">
       <section className="hero">
@@ -401,6 +429,15 @@ function App() {
               style={{ background: "#a16207", borderColor: "#a16207" }}
             >
               🔬 鉴定复核队列
+            </button>
+          </div>
+          <div className="association-entry" style={{ marginTop: "10px" }}>
+            <button
+              className="primary full-width"
+              onClick={handleOpenWizard}
+              style={{ background: "#1e40af", borderColor: "#1e40af" }}
+            >
+              📋 现场采样表单向导
             </button>
           </div>
         </aside>

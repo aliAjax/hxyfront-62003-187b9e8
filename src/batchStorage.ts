@@ -281,3 +281,156 @@ export function unassociateSampleFromCase(
 ): Sample[] {
   return updateSample(samples, sampleId, { relatedCase: "" });
 }
+
+export interface SampleFormDraft {
+  id: string;
+  currentStep: number;
+  sampleNumber: string;
+  samplingLocation: string;
+  environmentTemperature: string;
+  environmentHumidity: string;
+  weatherCondition: string;
+  exposureStage: string;
+  exposureNotes: string;
+  insectSpecies: string;
+  insectCount: string;
+  developmentStage: string;
+  insectCollectionMethod: string;
+  preservationMethod: string;
+  preservationSolution: string;
+  storageTemperature: string;
+  identificationNotes: string;
+  relatedCase: string;
+  savedAt: string;
+}
+
+const DRAFT_STORAGE_KEY = "forensic_entomology_drafts";
+
+export function loadDrafts(): SampleFormDraft[] {
+  try {
+    const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveDrafts(drafts: SampleFormDraft[]): void {
+  localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(drafts));
+}
+
+export function generateDraftId(): string {
+  return "DRAFT-" + Date.now().toString(36).toUpperCase() + "-" + Math.random().toString(36).slice(2, 6).toUpperCase();
+}
+
+export function upsertDraft(draft: SampleFormDraft): SampleFormDraft[] {
+  const drafts = loadDrafts();
+  const index = drafts.findIndex((d) => d.id === draft.id);
+  if (index >= 0) {
+    drafts[index] = { ...draft, savedAt: new Date().toISOString() };
+  } else {
+    drafts.unshift({ ...draft, savedAt: new Date().toISOString() });
+  }
+  saveDrafts(drafts);
+  return drafts;
+}
+
+export function deleteDraft(draftId: string): SampleFormDraft[] {
+  const drafts = loadDrafts().filter((d) => d.id !== draftId);
+  saveDrafts(drafts);
+  return drafts;
+}
+
+export function createEmptyDraft(): SampleFormDraft {
+  return {
+    id: generateDraftId(),
+    currentStep: 0,
+    sampleNumber: "",
+    samplingLocation: "",
+    environmentTemperature: "",
+    environmentHumidity: "",
+    weatherCondition: "",
+    exposureStage: "",
+    exposureNotes: "",
+    insectSpecies: "",
+    insectCount: "",
+    developmentStage: "",
+    insectCollectionMethod: "",
+    preservationMethod: "",
+    preservationSolution: "",
+    storageTemperature: "",
+    identificationNotes: "",
+    relatedCase: "",
+    savedAt: new Date().toISOString(),
+  };
+}
+
+export const EXPOSURE_STAGES = [
+  "新鲜期",
+  "肿胀期",
+  "腐败期",
+  "后腐败期",
+  "干化期",
+];
+
+export const DEVELOPMENT_STAGES = [
+  "卵",
+  "幼虫一龄",
+  "幼虫二龄",
+  "幼虫三龄",
+  "蛹",
+  "成虫",
+];
+
+export const PRESERVATION_METHODS = [
+  "乙醇保存",
+  "福尔马林保存",
+  "冷冻保存",
+  "干制标本",
+  "活体饲养",
+  "其他",
+];
+
+export const WEATHER_CONDITIONS = [
+  "晴朗",
+  "多云",
+  "阴天",
+  "小雨",
+  "中雨",
+  "大雨",
+  "雪",
+  "雾",
+];
+
+export const COLLECTION_METHODS = [
+  "镊子夹取",
+  "吸虫管",
+  "扫网",
+  "诱饵诱集",
+  "直接采集",
+  "其他",
+];
+
+export const WIZARD_STEPS = [
+  { key: "location", title: "采样地点", icon: "📍" },
+  { key: "environment", title: "环境条件", icon: "🌡️" },
+  { key: "exposure", title: "尸体暴露阶段", icon: "💀" },
+  { key: "insect", title: "昆虫信息", icon: "🪰" },
+  { key: "preservation", title: "保存方式", icon: "🧪" },
+  { key: "notes", title: "鉴定备注", icon: "📝" },
+  { key: "preview", title: "预览提交", icon: "✅" },
+];
+
+export const REQUIRED_FIELDS: Array<{ key: keyof SampleFormDraft; label: string }> = [
+  { key: "sampleNumber", label: "样本编号" },
+  { key: "samplingLocation", label: "采样地点" },
+  { key: "exposureStage", label: "尸体暴露阶段" },
+  { key: "developmentStage", label: "发育阶段" },
+  { key: "preservationMethod", label: "保存方式" },
+];
+
+export function getMissingFields(draft: SampleFormDraft): string[] {
+  return REQUIRED_FIELDS.filter((f) => !draft[f.key]?.trim()).map((f) => f.label);
+}
