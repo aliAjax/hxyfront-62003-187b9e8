@@ -3260,6 +3260,127 @@ input:focus,
   flex-shrink: 0;
 }
 
+.draft-recovery-panel {
+  border-left: 5px solid #1e40af;
+  background: linear-gradient(135deg, #ffffff 0%, #f0f7ff 100%);
+  animation: recoveryPanelSlideIn 0.4s ease;
+}
+
+@keyframes recoveryPanelSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.draft-recovery-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.draft-recovery-icon {
+  font-size: 40px;
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #1e40af, color-mix(in srgb, #1e40af 70%, #a16207));
+  border-radius: 16px;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.draft-recovery-title-section {
+  flex: 1;
+}
+
+.draft-recovery-badge {
+  margin: 0 0 6px 0;
+  color: #1e40af;
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.draft-recovery-title {
+  margin: 0;
+  font-size: 22px;
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.draft-recovery-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.draft-info-item {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.draft-info-label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.draft-info-value {
+  font-size: 15px;
+  color: #1e293b;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.draft-progress-text {
+  color: #64748b;
+  font-weight: 500;
+  font-size: 13px;
+  margin-left: 4px;
+}
+
+.draft-recovery-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.draft-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.draft-case-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  background: color-mix(in srgb, #1e40af 10%, #ffffff);
+  color: #1e40af;
+  border: 1px solid color-mix(in srgb, #1e40af 25%, #e2e8f0);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .preview-content {
   display: grid;
   gap: 20px;
@@ -3410,6 +3531,25 @@ input:focus,
   .draft-card-meta {
     flex-direction: column;
     gap: 4px;
+  }
+
+  .draft-recovery-header {
+    flex-direction: column;
+    text-align: center;
+    align-items: center;
+  }
+
+  .draft-recovery-actions {
+    flex-direction: column;
+  }
+
+  .draft-recovery-actions button {
+    width: 100%;
+  }
+
+  .draft-card-title-row {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 

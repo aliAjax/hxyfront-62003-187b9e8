@@ -199,6 +199,8 @@ export default function SampleFormWizard({
   };
 
   if (showDraftList) {
+    const latestDraft = drafts.length > 0 ? drafts[0] : null;
+
     return (
       <div className="wizard-page">
         <div className="wizard-header">
@@ -208,6 +210,61 @@ export default function SampleFormWizard({
           <h1 className="wizard-title">现场采样记录向导</h1>
           <div style={{ width: 80 }} />
         </div>
+
+        {latestDraft && (
+          <div className="panel draft-recovery-panel">
+            <div className="draft-recovery-header">
+              <div className="draft-recovery-icon">📝</div>
+              <div className="draft-recovery-title-section">
+                <p className="draft-recovery-badge">发现未完成的草稿</p>
+                <h2 className="draft-recovery-title">继续上次的采样记录</h2>
+              </div>
+            </div>
+            <div className="draft-recovery-info">
+              <div className="draft-info-item">
+                <span className="draft-info-label">📋 案件编号</span>
+                <span className="draft-info-value">
+                  {latestDraft.relatedCase || "未关联案件"}
+                </span>
+              </div>
+              <div className="draft-info-item">
+                <span className="draft-info-label">📍 采样地点</span>
+                <span className="draft-info-value">
+                  {latestDraft.samplingLocation || "未填写"}
+                </span>
+              </div>
+              <div className="draft-info-item">
+                <span className="draft-info-label">⏰ 更新时间</span>
+                <span className="draft-info-value">
+                  {formatDateTime(latestDraft.savedAt)}
+                </span>
+              </div>
+              <div className="draft-info-item">
+                <span className="draft-info-label">📊 填写进度</span>
+                <span className="draft-info-value">
+                  {WIZARD_STEPS[latestDraft.currentStep]?.title || "第 1 步"}
+                  <span className="draft-progress-text">
+                    （{latestDraft.currentStep + 1}/{WIZARD_STEPS.length} 步）
+                  </span>
+                </span>
+              </div>
+            </div>
+            <div className="draft-recovery-actions">
+              <button
+                className="primary large"
+                onClick={() => handleLoadDraft(latestDraft)}
+              >
+                ▶ 继续填写
+              </button>
+              <button
+                className="secondary"
+                onClick={() => handleDeleteDraft(latestDraft.id)}
+              >
+                🗑️ 丢弃草稿
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="panel" style={{ marginBottom: 18 }}>
           <div className="heading">
@@ -226,8 +283,8 @@ export default function SampleFormWizard({
         <div className="panel">
           <div className="heading">
             <div>
-              <p>继续填写</p>
-              <h2>未完成的草稿 ({drafts.length})</h2>
+              <p>草稿管理</p>
+              <h2>全部草稿 ({drafts.length})</h2>
             </div>
           </div>
           {drafts.length === 0 ? (
@@ -241,15 +298,23 @@ export default function SampleFormWizard({
               {drafts.map((d) => (
                 <div key={d.id} className="draft-card">
                   <div className="draft-card-main">
-                    <div className="draft-card-title">
-                      {d.sampleNumber || "未命名样本"}
+                    <div className="draft-card-title-row">
+                      <div className="draft-card-title">
+                        {d.sampleNumber || "未命名样本"}
+                      </div>
+                      {d.relatedCase && (
+                        <span className="draft-case-badge">
+                          📋 {d.relatedCase}
+                        </span>
+                      )}
                     </div>
                     <div className="draft-card-meta">
+                      <span>📍 {d.samplingLocation || "未填写地点"}</span>
                       <span>
-                        进度：{WIZARD_STEPS[d.currentStep]?.title || "第 1 步"}
+                        📊 {WIZARD_STEPS[d.currentStep]?.title || "第 1 步"}
+                        （{d.currentStep + 1}/{WIZARD_STEPS.length}）
                       </span>
-                      <span>保存于 {formatDateTime(d.savedAt)}</span>
-                      {d.samplingLocation && <span>📍 {d.samplingLocation}</span>}
+                      <span>⏰ {formatDateTime(d.savedAt)}</span>
                     </div>
                   </div>
                   <div className="draft-card-actions">
