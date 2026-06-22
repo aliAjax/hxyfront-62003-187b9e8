@@ -383,6 +383,8 @@ export default function CaseAssociationWorkspace({
   );
 }
 
+type DialogStep = "select" | "confirm";
+
 interface AssociateDialogProps {
   unassociatedSamples: Sample[];
   allCaseNumbers: string[];
@@ -400,6 +402,11 @@ function AssociateDialog({
 }: AssociateDialogProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [targetCase, setTargetCase] = useState(defaultCaseNumber);
+  const [step, setStep] = useState<DialogStep>("select");
+
+  const selectedSamples = unassociatedSamples.filter((s) =>
+    selectedIds.has(s.id)
+  );
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -421,7 +428,7 @@ function AssociateDialog({
     }
   };
 
-  const handleConfirm = () => {
+  const handleNext = () => {
     if (selectedIds.size === 0) {
       alert("请选择要关联的样本");
       return;
@@ -430,106 +437,218 @@ function AssociateDialog({
       alert("请选择目标案件");
       return;
     }
+    setStep("confirm");
+  };
+
+  const handleBack = () => {
+    setStep("select");
+  };
+
+  const handleSubmit = () => {
     onConfirm(Array.from(selectedIds), targetCase);
+  };
+
+  const handleCancel = () => {
+    if (step === "confirm") {
+      setStep("select");
+    } else {
+      onCancel();
+    }
   };
 
   return (
     <div className="dialog-overlay" onClick={onCancel}>
-      <div className="dialog" onClick={(e) => e.stopPropagation()}>
+      <div
+        className={`dialog ${step === "confirm" ? "large" : ""}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="dialog-header">
-          <h3>关联样本到案件</h3>
+          <div className="dialog-header-left">
+            <h3>
+              {step === "select" ? "关联样本到案件" : "确认关联信息"}
+            </h3>
+            <div className="dialog-step-indicator">
+              <span className={`step-dot ${step === "select" ? "active" : "done"}`}>1</span>
+              <span className="step-line" />
+              <span className={`step-dot ${step === "confirm" ? "active" : ""}`}>2</span>
+            </div>
+          </div>
           <button className="dialog-close" onClick={onCancel}>
             ✕
           </button>
         </div>
-        <div className="dialog-body">
-          <div className="dialog-form-row">
-            <label>
-              <span>目标案件 *</span>
-              <select
-                className="select-field"
-                value={targetCase}
-                onChange={(e) => setTargetCase(e.target.value)}
-              >
-                <option value="">请选择案件</option>
-                {allCaseNumbers.map((cn) => (
-                  <option key={cn} value={cn}>
-                    {cn}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
 
-          <div className="dialog-form-row">
-            <div className="select-all-row">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={
-                    unassociatedSamples.length > 0 &&
-                    selectedIds.size === unassociatedSamples.length
-                  }
-                  onChange={toggleSelectAll}
-                />
-                <span>
-                  全选（{selectedIds.size}/
-                  {unassociatedSamples.length} 已选）
-                </span>
-              </label>
-            </div>
-          </div>
-
-          {unassociatedSamples.length === 0 ? (
-            <div className="empty-state compact">
-              <div className="empty-icon">🎉</div>
-              <p>没有未关联的样本</p>
-            </div>
-          ) : (
-            <div className="sample-checklist">
-              {unassociatedSamples.map((sample) => (
-                <label
-                  key={sample.id}
-                  className={`sample-check-item ${
-                    selectedIds.has(sample.id) ? "checked" : ""
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(sample.id)}
-                    onChange={() => toggleSelect(sample.id)}
-                  />
-                  <div className="sample-check-info">
-                    <div className="sample-check-number">
-                      {sample.sampleNumber}
-                    </div>
-                    <div className="sample-check-meta">
-                      {[
-                        sample.developmentStage,
-                        sample.samplingLocation,
-                        sample.preservationMethod,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ") || "无详细信息"}
-                    </div>
-                  </div>
+        {step === "select" ? (
+          <>
+            <div className="dialog-body">
+              <div className="dialog-form-row">
+                <label>
+                  <span>目标案件 *</span>
+                  <select
+                    className="select-field"
+                    value={targetCase}
+                    onChange={(e) => setTargetCase(e.target.value)}
+                  >
+                    <option value="">请选择案件</option>
+                    {allCaseNumbers.map((cn) => (
+                      <option key={cn} value={cn}>
+                        {cn}
+                      </option>
+                    ))}
+                  </select>
                 </label>
-              ))}
+              </div>
+
+              <div className="dialog-form-row">
+                <div className="select-all-row">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={
+                        unassociatedSamples.length > 0 &&
+                        selectedIds.size === unassociatedSamples.length
+                      }
+                      onChange={toggleSelectAll}
+                    />
+                    <span>
+                      全选（{selectedIds.size}/
+                      {unassociatedSamples.length} 已选）
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {unassociatedSamples.length === 0 ? (
+                <div className="empty-state compact">
+                  <div className="empty-icon">🎉</div>
+                  <p>没有未关联的样本</p>
+                </div>
+              ) : (
+                <div className="sample-checklist">
+                  {unassociatedSamples.map((sample) => (
+                    <label
+                      key={sample.id}
+                      className={`sample-check-item ${
+                        selectedIds.has(sample.id) ? "checked" : ""
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(sample.id)}
+                        onChange={() => toggleSelect(sample.id)}
+                      />
+                      <div className="sample-check-info">
+                        <div className="sample-check-number">
+                          {sample.sampleNumber}
+                        </div>
+                        <div className="sample-check-meta">
+                          {[
+                            sample.developmentStage,
+                            sample.samplingLocation,
+                            sample.preservationMethod,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ") || "无详细信息"}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        <div className="dialog-footer">
-          <button className="secondary" onClick={onCancel}>
-            取消
-          </button>
-          <button
-            className="primary"
-            onClick={handleConfirm}
-            disabled={selectedIds.size === 0 || !targetCase}
-          >
-            确认关联 ({selectedIds.size})
-          </button>
-        </div>
+            <div className="dialog-footer">
+              <button className="secondary" onClick={onCancel}>
+                取消
+              </button>
+              <button
+                className="primary"
+                onClick={handleNext}
+                disabled={selectedIds.size === 0 || !targetCase}
+              >
+                下一步 →
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="dialog-body">
+              <div className="confirm-summary-card">
+                <div className="confirm-summary-row">
+                  <span className="confirm-summary-label">目标案件</span>
+                  <span className="confirm-summary-value case-badge">
+                    📁 {targetCase}
+                  </span>
+                </div>
+                <div className="confirm-summary-row">
+                  <span className="confirm-summary-label">关联样本数</span>
+                  <span className="confirm-summary-value">
+                    共 {selectedSamples.length} 个样本
+                  </span>
+                </div>
+              </div>
+
+              <div className="confirm-table-wrapper">
+                <h4 className="confirm-table-title">样本明细</h4>
+                <div className="confirm-table">
+                  <div className="confirm-table-head">
+                    <div className="confirm-th col-idx">序号</div>
+                    <div className="confirm-th col-number">样本编号</div>
+                    <div className="confirm-th col-stage">当前阶段</div>
+                    <div className="confirm-th col-location">采样地点</div>
+                    <div className="confirm-th col-case">目标案件</div>
+                  </div>
+                  <div className="confirm-table-body">
+                    {selectedSamples.map((sample, idx) => (
+                      <div key={sample.id} className="confirm-table-row">
+                        <div className="confirm-td col-idx">
+                          {String(idx + 1).padStart(2, "0")}
+                        </div>
+                        <div className="confirm-td col-number">
+                          <span className="sample-number-tag">
+                            {sample.sampleNumber}
+                          </span>
+                        </div>
+                        <div className="confirm-td col-stage">
+                          {sample.developmentStage ? (
+                            <span className="stage-tag">
+                              {sample.developmentStage}
+                            </span>
+                          ) : (
+                            <span className="no-data">未设置</span>
+                          )}
+                        </div>
+                        <div className="confirm-td col-location">
+                          {sample.samplingLocation || (
+                            <span className="no-data">未设置</span>
+                          )}
+                        </div>
+                        <div className="confirm-td col-case">
+                          <span className="case-tag-mini">{targetCase}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="confirm-warning">
+                <span className="warning-icon">⚠️</span>
+                <span className="warning-text">
+                  确认后将批量更新 {selectedSamples.length} 个样本的关联状态，
+                  案件详情、未关联列表和样本详情将同步更新。
+                </span>
+              </div>
+            </div>
+            <div className="dialog-footer">
+              <button className="secondary" onClick={handleBack}>
+                ← 返回修改
+              </button>
+              <button className="primary" onClick={handleSubmit}>
+                ✓ 确认批量关联
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
