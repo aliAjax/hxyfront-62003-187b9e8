@@ -199,7 +199,10 @@ export default function SampleFormWizard({
   };
 
   if (showDraftList) {
-    const latestDraft = drafts.length > 0 ? drafts[0] : null;
+    const sortedDrafts = [...drafts].sort(
+      (a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime()
+    );
+    const latestDraft = sortedDrafts.length > 0 ? sortedDrafts[0] : null;
 
     return (
       <div className="wizard-page">
@@ -284,10 +287,10 @@ export default function SampleFormWizard({
           <div className="heading">
             <div>
               <p>草稿管理</p>
-              <h2>全部草稿 ({drafts.length})</h2>
+              <h2>全部草稿 ({sortedDrafts.length})</h2>
             </div>
           </div>
-          {drafts.length === 0 ? (
+          {sortedDrafts.length === 0 ? (
             <div className="empty-state">
               <div className="empty-icon">📋</div>
               <h3>暂无草稿</h3>
@@ -295,7 +298,7 @@ export default function SampleFormWizard({
             </div>
           ) : (
             <div className="draft-list">
-              {drafts.map((d) => (
+              {sortedDrafts.map((d) => (
                 <div key={d.id} className="draft-card">
                   <div className="draft-card-main">
                     <div className="draft-card-title-row">

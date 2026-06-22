@@ -383,7 +383,11 @@ export function loadDrafts(): SampleFormDraft[] {
     const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.sort(
+      (a: SampleFormDraft, b: SampleFormDraft) =>
+        new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime()
+    );
   } catch {
     return [];
   }
