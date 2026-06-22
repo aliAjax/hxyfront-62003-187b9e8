@@ -33,6 +33,7 @@ import SampleFormWizard from "./SampleFormWizard";
 import SampleExportSummary from "./SampleExportSummary";
 import OfflineWorkbench from "./OfflineWorkbench";
 import TimelineAnalysis from "./TimelineAnalysis";
+import CaseComparison from "./CaseComparison";
 
 const project = {
   "sourceNo": 5,
@@ -88,7 +89,7 @@ const project = {
   ]
 };
 
-type ViewMode = "list" | "detail" | "filter" | "association" | "queue" | "wizard" | "export" | "offline" | "timeline";
+type ViewMode = "list" | "detail" | "filter" | "association" | "queue" | "wizard" | "export" | "offline" | "timeline" | "comparison";
 
 function App() {
   const [batches, setBatches] = useState<SampleBatch[]>([]);
@@ -398,6 +399,16 @@ function App() {
     setTimelineMockSamples(mockSamples);
   };
 
+  const handleOpenComparison = () => {
+    if (!confirmDiscardBeforeNavigate()) return;
+    setPreviousViewMode(viewMode);
+    setViewMode("comparison");
+  };
+
+  const handleBackFromComparison = () => {
+    setViewMode(previousViewMode);
+  };
+
   const totalSamples = batches.reduce((sum, b) => sum + b.sampleCount, 0);
   const avgTemp = batches.length > 0
     ? (
@@ -516,6 +527,18 @@ function App() {
     );
   }
 
+  if (viewMode === "comparison") {
+    return (
+      <main className="app">
+        <CaseComparison
+          samples={samples}
+          onBack={handleBackFromComparison}
+          onViewSampleDetail={handleViewDetail}
+        />
+      </main>
+    );
+  }
+
   return (
     <main className="app">
       <section className="hero">
@@ -594,6 +617,15 @@ function App() {
               style={{ background: "linear-gradient(135deg, #059669, #047857)", borderColor: "#059669" }}
             >
               ⏱️ 时间线分析
+            </button>
+          </div>
+          <div className="association-entry" style={{ marginTop: "10px" }}>
+            <button
+              className="primary full-width"
+              onClick={handleOpenComparison}
+              style={{ background: "linear-gradient(135deg, #7c3aed, #6d28d9)", borderColor: "#7c3aed" }}
+            >
+              ⚖️ 案件间对照分析
             </button>
           </div>
         </aside>
