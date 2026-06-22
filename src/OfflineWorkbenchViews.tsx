@@ -1059,6 +1059,7 @@ export function SyncCenterView({
   isSyncing,
   onResolveConflict,
   onRetryFailed,
+  onOpenMergeView,
 }: {
   batches: SyncedSampleBatch[];
   samples: SyncedSample[];
@@ -1072,6 +1073,7 @@ export function SyncCenterView({
     strategy: "USE_LOCAL" | "USE_SERVER"
   ) => void;
   onRetryFailed: (entityType: EntityType, entityId: string) => void;
+  onOpenMergeView: (entityType: EntityType, entityId: string) => void;
 }) {
   const pendingItems = [...batches, ...samples].filter(
     (e) => e.syncMeta.syncStatus !== "SYNCED"
@@ -1155,7 +1157,7 @@ export function SyncCenterView({
             ⚠ 数据冲突 ({conflictItems.length})
           </h3>
           <p style={{ color: "#64748b", margin: "0 0 14px 0" }}>
-            本地和服务端数据不一致，请选择保留哪个版本
+            本地和服务端数据不一致。推荐使用「逐字段合并」查看详细差异，也可使用快捷操作直接选择版本
           </p>
           <div className="conflict-list">
             {conflictItems.map((item) => {
@@ -1166,29 +1168,43 @@ export function SyncCenterView({
                 ("sampleNumber" in item ? item : (item as unknown as SampleBatch)).id
               );
               return (
-                <div key={item.syncMeta.version + Math.random()} className="conflict-item">
+                <div key={item.syncMeta.version + Math.random()} className="conflict-item conflict-item-enhanced">
                   <div className="conflict-item-info">
                     <span className="conflict-entity-type">
                       {entityType === "SAMPLE" ? "🧪 样本" : "📦 批次"}
                     </span>
-                    <strong>{label}</strong>
-                    {item.syncMeta.syncError && (
-                      <span className="conflict-error">{item.syncMeta.syncError}</span>
-                    )}
+                    <div className="conflict-item-text">
+                      <strong className="conflict-item-name">{label}</strong>
+                      {item.syncMeta.syncError && (
+                        <span className="conflict-error">{item.syncMeta.syncError}</span>
+                      )}
+                      <span className="conflict-meta-hint">
+                        最后修改: {formatDateTime(item.syncMeta.lastModifiedAt)} · 版本 v{item.syncMeta.version}
+                      </span>
+                    </div>
                   </div>
-                  <div className="conflict-actions">
+                  <div className="conflict-actions conflict-actions-enhanced">
                     <button
-                      className="primary"
-                      onClick={() => onResolveConflict(entityType, (item as { id: string }).id, "USE_LOCAL")}
+                      className="primary merge-entry-btn"
+                      onClick={() => onOpenMergeView(entityType, (item as { id: string }).id)}
                     >
-                      ✓ 使用本地版本
+                      🔀 逐字段合并
                     </button>
-                    <button
-                      className="secondary"
-                      onClick={() => onResolveConflict(entityType, (item as { id: string }).id, "USE_SERVER")}
-                    >
-                      ← 使用服务端版本
-                    </button>
+                    <div className="conflict-quick-actions">
+                      <span className="quick-actions-label">快捷操作：</span>
+                      <button
+                        className="secondary"
+                        onClick={() => onResolveConflict(entityType, (item as { id: string }).id, "USE_LOCAL")}
+                      >
+                        📱 保留本地
+                      </button>
+                      <button
+                        className="secondary"
+                        onClick={() => onResolveConflict(entityType, (item as { id: string }).id, "USE_SERVER")}
+                      >
+                        ☁️ 采用服务端
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

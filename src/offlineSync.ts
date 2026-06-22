@@ -71,11 +71,54 @@ export interface SyncedSample extends Sample {
   syncMeta: SyncMetadata;
 }
 
+export interface ConflictFieldResolution {
+  fieldName: string;
+  strategy: "USE_LOCAL" | "USE_SERVER" | "MANUAL";
+  manualValue?: unknown;
+}
+
+export interface ConflictResolution {
+  entityType: EntityType;
+  entityId: string;
+  overallStrategy: "USE_LOCAL" | "USE_SERVER" | "FIELD_BY_FIELD";
+  fieldResolutions: ConflictFieldResolution[];
+  resolvedData: Record<string, unknown>;
+}
+
 const SYNCED_BATCHES_KEY = "forensic_entomology_synced_batches_v2";
 const SYNCED_SAMPLES_KEY = "forensic_entomology_synced_samples_v2";
 const OPERATION_LOG_KEY = "forensic_entomology_operation_log_v2";
 const PENDING_OPS_KEY = "forensic_entomology_pending_ops_v2";
 const SERVER_DATA_KEY = "forensic_entomology_server_mock_v2";
+
+export const SAMPLE_COMPARABLE_FIELDS: (keyof Sample)[] = [
+  "sampleNumber",
+  "insectSpecies",
+  "developmentStage",
+  "preservationMethod",
+  "identificationNotes",
+  "relatedCase",
+  "samplingLocation",
+  "environmentTemperature",
+  "environmentHumidity",
+  "weatherCondition",
+  "exposureStage",
+  "exposureNotes",
+  "insectCount",
+  "insectCollectionMethod",
+  "preservationSolution",
+  "storageTemperature",
+];
+
+export const BATCH_COMPARABLE_FIELDS: (keyof SampleBatch)[] = [
+  "caseNumber",
+  "samplingLocation",
+  "samplingTime",
+  "environmentTemperature",
+  "exposureStage",
+  "fieldNotes",
+  "sampleCount",
+];
 
 export function generateOpId(): string {
   return "OP-" + Date.now().toString(36).toUpperCase() + "-" + Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -631,6 +674,265 @@ export function getSyncStats(): {
     conflict: all.filter((e) => e.syncMeta.syncStatus === "CONFLICT").length,
     failed: all.filter((e) => e.syncMeta.syncStatus === "FAILED").length,
   };
+}
+
+export function getServerEntityData(
+  entityType: EntityType,
+  entityId: string
+): Record<string, unknown> | null {
+  const serverData = loadServerMockData();
+  if (entityType === "BATCH") {
+    const b = serverData.batches.find((x) => x.id === entityId);
+    return b ? (b as unknown as Record<string, unknown>) : null;
+  } else {
+    const s = serverData.samples.find((x) => x.id === entityId);
+    return s ? (s as unknown as Record<string, unknown>) : null;
+  }
+}
+
+export function getLocalEntityData(
+  entityType: EntityType,
+  entityId: string
+): Record<string, unknown> | null {
+  if (entityType === "BATCH") {
+    const batches = loadSyncedBatches();
+    const b = batches.find((x) => x.id === entityId);
+    if (!b) return null;
+    const { syncMeta: _m, ...plain } = b;
+    return plain as unknown as Record<string, unknown>;
+  } else {
+    const samples = loadSyncedSamples();
+    const s = samples.find((x) => x.id === entityId);
+    if (!s) return null;
+    const { syncMeta: _m, ...plain } = s;
+    return plain as unknown as Record<string, unknown>;
+  }
+}
+
+export interface ConflictFieldDiff {
+  fieldName: string;
+  label: string;
+  localValue: unknown;
+  serverValue: unknown;
+  isConflict: boolean;
+}
+
+export const FIELD_LABELS: Record<string, string> = {
+  sampleNumber: "样本编号",
+  insectSpecies: "昆虫种类",
+  developmentStage: "发育阶段",
+  preservationMethod: "保存方式",
+  identificationNotes: "鉴定备注",
+  relatedCase: "关联案件",
+  samplingLocation: "采样地点",
+  environmentTemperature: "环境温度(℃)",
+  environmentHumidity: "相对湿度(%)",
+  weatherCondition: "天气情况",
+  exposureStage: "暴露阶段",
+  exposureNotes: "暴露情况备注",
+  insectCount: "采集数量",
+  insectCollectionMethod: "采集方法",
+  preservationSolution: "保存溶液/试剂",
+  storageTemperature: "存储温度(℃)",
+  temperatureRecords: "温度记录",
+  status: "样本状态",
+  priority: "复核优先级",
+  caseNumber: "案件编号",
+  samplingTime: "采样时间",
+  fieldNotes: "现场备注",
+  sampleCount: "样本数量",
+};
+
+export function getFieldLabel(field: string): string {
+  return FIELD_LABELS[field] || field;
+}
+
+export function getComparableFields(entityType: EntityType): string[] {
+  if (entityType === "BATCH") {
+    return BATCH_COMPARABLE_FIELDS as string[];
+  }
+  return SAMPLE_COMPARABLE_FIELDS as string[];
+}
+
+export function computeFieldDiffs(
+  entityType: EntityType,
+  localData: Record<string, unknown>,
+  serverData: Record<string, unknown>
+): ConflictFieldDiff[] {
+  const fields = getComparableFields(entityType);
+  return fields.map((f) => {
+    const localVal = localData[f];
+    const serverVal = serverData[f];
+    const isConflict =
+      JSON.stringify(localVal) !== JSON.stringify(serverVal);
+    return {
+      fieldName: f,
+      label: getFieldLabel(f),
+      localValue: localVal,
+      serverValue: serverVal,
+      isConflict,
+    };
+  });
+}
+
+function applyFieldResolutions(
+  baseData: Record<string, unknown>,
+  localData: Record<string, unknown>,
+  serverData: Record<string, unknown>,
+  fieldResolutions: ConflictFieldResolution[]
+): Record<string, unknown> {
+  const result: Record<string, unknown> = { ...baseData };
+  for (const fr of fieldResolutions) {
+    if (fr.strategy === "USE_LOCAL") {
+      result[fr.fieldName] = localData[fr.fieldName];
+    } else if (fr.strategy === "USE_SERVER") {
+      result[fr.fieldName] = serverData[fr.fieldName];
+    } else if (fr.strategy === "MANUAL" && fr.manualValue !== undefined) {
+      result[fr.fieldName] = fr.manualValue;
+    }
+  }
+  return result;
+}
+
+export function addConflictResolutionLog(
+  entityType: EntityType,
+  entityId: string,
+  entityLabel: string,
+  resolution: ConflictResolution,
+  operator: string = "现场勘查员"
+): void {
+  const strategyDesc =
+    resolution.overallStrategy === "USE_LOCAL"
+      ? "全部采用本地版本"
+      : resolution.overallStrategy === "USE_SERVER"
+      ? "全部采用服务端版本"
+      : `逐字段合并（${resolution.fieldResolutions.length} 个字段）`;
+
+  addOperationLog({
+    entityType,
+    entityId,
+    operationType: "UPDATE",
+    fieldName: resolution.fieldResolutions.map((f) => f.fieldName).join(","),
+    oldValue: resolution.fieldResolutions.reduce(
+      (acc, f) => ({ ...acc, [f.fieldName]: { local: f.manualValue ?? undefined, server: undefined } }),
+      {}
+    ),
+    newValue: resolution.resolvedData,
+    operator,
+    description: `冲突解决：${entityLabel} · ${strategyDesc}`,
+  });
+
+  for (const fr of resolution.fieldResolutions) {
+    const strategyText =
+      fr.strategy === "USE_LOCAL"
+        ? "保留本地"
+        : fr.strategy === "USE_SERVER"
+        ? "采用服务端"
+        : "手动合并";
+    addOperationLog({
+      entityType,
+      entityId,
+      operationType: "UPDATE",
+      fieldName: fr.fieldName,
+      oldValue:
+        fr.strategy === "USE_SERVER"
+          ? { local: (resolution as any)._localRef?.[fr.fieldName], server: (resolution as any)._serverRef?.[fr.fieldName] }
+          : undefined,
+      newValue: fr.manualValue,
+      operator,
+      description: `冲突字段 [${getFieldLabel(fr.fieldName)}]：${strategyText}`,
+    });
+  }
+}
+
+export function resolveConflictWithMerge(
+  resolution: ConflictResolution,
+  operator: string = "现场勘查员"
+): boolean {
+  const { entityType, entityId, resolvedData, fieldResolutions } = resolution;
+  const batches = loadSyncedBatches();
+  const samples = loadSyncedSamples();
+  const serverData = loadServerMockData();
+  const pendingOps = loadPendingOperations();
+
+  let entityLabel = entityId;
+
+  if (entityType === "BATCH") {
+    const idx = batches.findIndex((b) => b.id === entityId);
+    if (idx < 0) return false;
+    const originalBatch = batches[idx];
+    entityLabel = originalBatch.caseNumber || entityId;
+
+    const mergedBatch: SampleBatch = {
+      ...(originalBatch as unknown as Record<string, unknown>),
+      ...resolvedData,
+      id: entityId,
+      updatedAt: new Date().toISOString(),
+    } as unknown as SampleBatch;
+
+    batches[idx] = {
+      ...mergedBatch,
+      syncMeta: markSynced(markModified(originalBatch.syncMeta)),
+    };
+
+    const sIdx = serverData.batches.findIndex((b) => b.id === entityId);
+    if (sIdx >= 0) {
+      serverData.batches[sIdx] = mergedBatch;
+    } else {
+      serverData.batches.push(mergedBatch);
+    }
+
+    saveSyncedBatches(batches);
+  } else {
+    const idx = samples.findIndex((s) => s.id === entityId);
+    if (idx < 0) return false;
+    const originalSample = samples[idx];
+    entityLabel = originalSample.sampleNumber || entityId;
+
+    const mergedSample: Sample = {
+      ...(originalSample as unknown as Record<string, unknown>),
+      ...resolvedData,
+      id: entityId,
+      updatedAt: new Date().toISOString(),
+    } as unknown as Sample;
+
+    samples[idx] = {
+      ...mergedSample,
+      syncMeta: markSynced(markModified(originalSample.syncMeta)),
+    };
+
+    const sIdx = serverData.samples.findIndex((s) => s.id === entityId);
+    if (sIdx >= 0) {
+      serverData.samples[sIdx] = mergedSample;
+    } else {
+      serverData.samples.push(mergedSample);
+    }
+
+    saveSyncedSamples(samples);
+  }
+
+  saveServerMockData(serverData);
+
+  const relatedPendingIds = pendingOps
+    .filter((op) => op.entityType === entityType && op.entityId === entityId)
+    .map((op) => op.id);
+  if (relatedPendingIds.length > 0) {
+    removePendingOperations(relatedPendingIds);
+  }
+
+  addConflictResolutionLog(entityType, entityId, entityLabel, resolution, operator);
+  return true;
+}
+
+export function buildResolvedDataFromFieldChoices(
+  entityType: EntityType,
+  entityId: string,
+  localData: Record<string, unknown>,
+  serverData: Record<string, unknown>,
+  fieldResolutions: ConflictFieldResolution[]
+): Record<string, unknown> {
+  const baseLocal = getLocalEntityData(entityType, entityId) || {};
+  return applyFieldResolutions(baseLocal, localData, serverData, fieldResolutions);
 }
 
 export { deepClone, shallowDiff };

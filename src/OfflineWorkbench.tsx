@@ -50,6 +50,8 @@ import {
   retryFailed,
   getSyncStats,
   SyncResult,
+  getServerEntityData,
+  getLocalEntityData,
 } from "./offlineSync";
 import {
   BatchListView,
@@ -58,13 +60,24 @@ import {
   OperationLogView,
   SyncCenterView,
 } from "./OfflineWorkbenchViews";
+import ConflictMergeView from "./ConflictMergeView";
 
 type WorkbenchView =
   | "BATCH_LIST"
   | "BATCH_EDIT"
   | "SAMPLE_DETAIL"
   | "OPERATION_LOG"
-  | "SYNC_CENTER";
+  | "SYNC_CENTER"
+  | "CONFLICT_MERGE";
+
+interface ConflictMergeContext {
+  entityType: EntityType;
+  entityId: string;
+  entityLabel: string;
+  localData: Record<string, unknown>;
+  serverData: Record<string, unknown>;
+  syncError?: string;
+}
 
 interface SyncStats {
   totalBatches: number;
@@ -99,6 +112,8 @@ export default function OfflineWorkbench() {
     message: string;
   } | null>(null);
   const [statusFilter, setStatusFilter] = useState<SyncStatus | "ALL">("ALL");
+  const [conflictMergeContext, setConflictMergeContext] =
+    useState<ConflictMergeContext | null>(null);
 
   const showNotification = useCallback(
     (type: "success" | "error" | "warning" | "info", message: string) => {
@@ -617,6 +632,64 @@ export default function OfflineWorkbench() {
     [showNotification]
   );
 
+  const handleOpenMergeView = useCallback(
+    (entityType: EntityType, entityId: string) => {
+      const localData = getLocalEntityData(entityType, entityId);
+      const serverData = getServerEntityData(entityType, entityId);
+
+      if (!localData || !serverData) {
+        showNotification(
+          "error",
+          "无法获取本地或服务端数据，无法打开冲突合并视图"
+        );
+        return;
+      }
+
+      let entityLabel = entityId;
+      let syncError: string | undefined;
+
+      if (entityType === "BATCH") {
+        const b = batches.find((x) => x.id === entityId);
+        if (b) {
+          entityLabel = b.caseNumber || entityId;
+          syncError = b.syncMeta.syncError;
+        }
+      } else {
+        const s = samples.find((x) => x.id === entityId);
+        if (s) {
+          entityLabel = s.sampleNumber || entityId;
+          syncError = s.syncMeta.syncError;
+        }
+      }
+
+      setConflictMergeContext({
+        entityType,
+        entityId,
+        entityLabel,
+        localData,
+        serverData,
+        syncError,
+      });
+      setView("CONFLICT_MERGE");
+    },
+    [batches, samples, showNotification]
+  );
+
+  const handleMergeResolved = useCallback(() => {
+    setConflictMergeContext(null);
+    setBatches(loadSyncedBatches());
+    setSamples(loadSyncedSamples());
+    setPendingOps(loadPendingOperations());
+    setOperationLogs(loadOperationLogs());
+    setView("SYNC_CENTER");
+    showNotification("success", "冲突已解决，数据已同步");
+  }, [showNotification]);
+
+  const handleCloseMergeView = useCallback(() => {
+    setConflictMergeContext(null);
+    setView("SYNC_CENTER");
+  }, []);
+
   const filteredBatches = useMemo(() => {
     if (statusFilter === "ALL") return batches;
     return batches.filter((b) => b.syncMeta.syncStatus === statusFilter);
@@ -813,6 +886,20 @@ export default function OfflineWorkbench() {
           isSyncing={isSyncing}
           onResolveConflict={handleResolveConflict}
           onRetryFailed={handleRetryFailed}
+          onOpenMergeView={handleOpenMergeView}
+        />
+      )}
+
+      {view === "CONFLICT_MERGE" && conflictMergeContext && (
+        <ConflictMergeView
+          entityType={conflictMergeContext.entityType}
+          entityId={conflictMergeContext.entityId}
+          entityLabel={conflictMergeContext.entityLabel}
+          localData={conflictMergeContext.localData}
+          serverData={conflictMergeContext.serverData}
+          syncError={conflictMergeContext.syncError}
+          onBack={handleCloseMergeView}
+          onResolved={handleMergeResolved}
         />
       )}
     </main>
