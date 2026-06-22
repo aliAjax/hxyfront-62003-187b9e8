@@ -248,6 +248,8 @@ export default function ConflictMergeView({
       overallStrategy,
       fieldResolutions,
       resolvedData,
+      localData,
+      serverData,
     };
 
     setIsSubmitting(true);

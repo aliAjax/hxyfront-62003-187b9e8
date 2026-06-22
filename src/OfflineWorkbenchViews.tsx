@@ -981,6 +981,8 @@ export function OperationLogView({
   samples: SyncedSample[];
   batches: SyncedSampleBatch[];
 }) {
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+
   const getEntityLabel = (log: OperationLog): string => {
     if (log.entityType === "SAMPLE") {
       const s = samples.find((x) => x.id === log.entityId);
@@ -1003,6 +1005,174 @@ export function OperationLogView({
     DELETE: "#dc2626",
   };
 
+  const isConflictSummaryLog = (log: OperationLog): boolean => {
+    return (
+      log.description?.startsWith("冲突解决：") === true &&
+      typeof log.newValue === "object" &&
+      log.newValue !== null &&
+      "_conflictResolution" in log.newValue
+    );
+  };
+
+  const isConflictFieldLog = (log: OperationLog): boolean => {
+    return (
+      log.description?.startsWith("冲突字段 [") === true &&
+      typeof log.oldValue === "object" &&
+      log.oldValue !== null &&
+      "localOriginal" in log.oldValue
+    );
+  };
+
+  const formatValue = (val: unknown): string => {
+    if (val === undefined || val === null || val === "") return "（空）";
+    if (typeof val === "string") {
+      if (val.length > 60) return val.slice(0, 57) + "...";
+      return val;
+    }
+    return JSON.stringify(val);
+  };
+
+  const getStrategyBadge = (strategy: string) => {
+    if (strategy === "USE_LOCAL") {
+      return <span className="conflict-log-badge badge-local">📱 保留本地</span>;
+    }
+    if (strategy === "USE_SERVER") {
+      return <span className="conflict-log-badge badge-server">☁️ 采用服务端</span>;
+    }
+    return <span className="conflict-log-badge badge-manual">✏️ 手动合并</span>;
+  };
+
+  const renderConflictSummaryLog = (log: OperationLog) => {
+    const resolution = (log.newValue as any)?._conflictResolution as Record<
+      string,
+      { value: unknown; strategy: string }
+    >;
+    const overallStrategy = (log.newValue as any)?._overallStrategy as string;
+    if (!resolution) return null;
+
+    const fields = Object.keys(resolution);
+    const isExpanded = expandedLogId === log.id;
+
+    return (
+      <div className="log-item conflict-log-item conflict-summary-item">
+        <div className="conflict-log-icon">⚠️</div>
+        <div className="log-main">
+          <div className="log-header">
+            <span className="log-entity-type">
+              {log.entityType === "SAMPLE" ? "🧪 样本" : "📦 批次"}
+            </span>
+            <strong className="log-entity-name">{getEntityLabel(log)}</strong>
+            <span className="log-desc">{log.description}</span>
+            <button
+              className="expand-btn"
+              onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
+            >
+              {isExpanded ? "收起 ▲" : "展开 ▼"}
+            </button>
+          </div>
+          <div className="log-meta">
+            <span>👤 {log.operator}</span>
+            <span>🕒 {formatDateTime(log.timestamp)}</span>
+            <span>
+              📋 {fields.length} 个字段 · 策略：
+              {overallStrategy === "USE_LOCAL"
+                ? "全部本地"
+                : overallStrategy === "USE_SERVER"
+                ? "全部服务端"
+                : "逐字段合并"}
+            </span>
+            <SyncStatusBadge status={log.syncStatus} />
+          </div>
+          {isExpanded && (
+            <div className="conflict-field-summary">
+              <div className="conflict-summary-header">
+                <span className="col-field">字段</span>
+                <span className="col-value">本地原值</span>
+                <span className="col-value">服务端原值</span>
+                <span className="col-strategy">策略</span>
+                <span className="col-value">最终值</span>
+              </div>
+              {fields.map((field) => {
+                const fr = resolution[field];
+                const oldVal = log.oldValue as Record<string, { local: unknown; server: unknown }>;
+                return (
+                  <div key={field} className="conflict-summary-row">
+                    <span className="col-field field-name">{field}</span>
+                    <span className="col-value old-value">
+                      {formatValue(oldVal?.[field]?.local)}
+                    </span>
+                    <span className="col-value old-value">
+                      {formatValue(oldVal?.[field]?.server)}
+                    </span>
+                    <span className="col-strategy">{getStrategyBadge(fr.strategy)}</span>
+                    <span className="col-value new-value">
+                      <strong>{formatValue(fr.value)}</strong>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderConflictFieldLog = (log: OperationLog) => {
+    const oldVal = log.oldValue as {
+      localOriginal: unknown;
+      serverOriginal: unknown;
+      localDisplay: string;
+      serverDisplay: string;
+      fieldLabel: string;
+    };
+    const newVal = log.newValue as {
+      strategy: string;
+      strategyText: string;
+      finalValue: unknown;
+      finalDisplay: string;
+      fieldLabel: string;
+    };
+
+    return (
+      <div className="log-item conflict-log-item conflict-field-item">
+        <div className="conflict-log-icon">↳</div>
+        <div className="log-main">
+          <div className="log-header">
+            <span className="log-entity-type conflict-field-badge">
+              {getStrategyBadge(newVal.strategy)}
+            </span>
+            <strong className="log-entity-name">{newVal.fieldLabel}</strong>
+            <span className="log-desc">{log.description}</span>
+          </div>
+          <div className="conflict-field-compare">
+            <div className="compare-col compare-local">
+              <div className="compare-label">📱 本地原值</div>
+              <div className="compare-value">{formatValue(oldVal.localOriginal)}</div>
+            </div>
+            <div className="compare-arrow">
+              {newVal.strategy === "USE_SERVER" ? "→" : newVal.strategy === "USE_LOCAL" ? "←" : "↯"}
+            </div>
+            <div className="compare-col compare-server">
+              <div className="compare-label">☁️ 服务端原值</div>
+              <div className="compare-value">{formatValue(oldVal.serverOriginal)}</div>
+            </div>
+            <div className="compare-arrow">→</div>
+            <div className="compare-col compare-final">
+              <div className="compare-label">✅ 最终值</div>
+              <div className="compare-value final">{formatValue(newVal.finalValue)}</div>
+            </div>
+          </div>
+          <div className="log-meta">
+            <span>👤 {log.operator}</span>
+            <span>🕒 {formatDateTime(log.timestamp)}</span>
+            <SyncStatusBadge status={log.syncStatus} />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="workbench-content">
       <div className="content-header">
@@ -1020,30 +1190,42 @@ export function OperationLogView({
         </div>
       ) : (
         <div className="operation-log-list">
-          {logs.map((log) => (
-            <div key={log.id} className="log-item">
-              <div
-                className="log-op-type"
-                style={{ background: opTypeColors[log.operationType] }}
-              >
-                {opTypeLabels[log.operationType]}
-              </div>
-              <div className="log-main">
-                <div className="log-header">
-                  <span className="log-entity-type">
-                    {log.entityType === "SAMPLE" ? "🧪 样本" : "📦 批次"}
-                  </span>
-                  <strong className="log-entity-name">{getEntityLabel(log)}</strong>
-                  <span className="log-desc">{log.description}</span>
+          {logs.map((log) => {
+            if (isConflictSummaryLog(log)) {
+              return (
+                <div key={log.id}>{renderConflictSummaryLog(log)}</div>
+              );
+            }
+            if (isConflictFieldLog(log)) {
+              return (
+                <div key={log.id}>{renderConflictFieldLog(log)}</div>
+              );
+            }
+            return (
+              <div key={log.id} className="log-item">
+                <div
+                  className="log-op-type"
+                  style={{ background: opTypeColors[log.operationType] }}
+                >
+                  {opTypeLabels[log.operationType]}
                 </div>
-                <div className="log-meta">
-                  <span>👤 {log.operator}</span>
-                  <span>🕒 {formatDateTime(log.timestamp)}</span>
-                  <SyncStatusBadge status={log.syncStatus} />
+                <div className="log-main">
+                  <div className="log-header">
+                    <span className="log-entity-type">
+                      {log.entityType === "SAMPLE" ? "🧪 样本" : "📦 批次"}
+                    </span>
+                    <strong className="log-entity-name">{getEntityLabel(log)}</strong>
+                    <span className="log-desc">{log.description}</span>
+                  </div>
+                  <div className="log-meta">
+                    <span>👤 {log.operator}</span>
+                    <span>🕒 {formatDateTime(log.timestamp)}</span>
+                    <SyncStatusBadge status={log.syncStatus} />
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

@@ -83,6 +83,8 @@ export interface ConflictResolution {
   overallStrategy: "USE_LOCAL" | "USE_SERVER" | "FIELD_BY_FIELD";
   fieldResolutions: ConflictFieldResolution[];
   resolvedData: Record<string, unknown>;
+  localData: Record<string, unknown>;
+  serverData: Record<string, unknown>;
 }
 
 const SYNCED_BATCHES_KEY = "forensic_entomology_synced_batches_v2";
@@ -801,46 +803,105 @@ export function addConflictResolutionLog(
   resolution: ConflictResolution,
   operator: string = "现场勘查员"
 ): void {
+  const { fieldResolutions, resolvedData, localData, serverData, overallStrategy } = resolution;
+
   const strategyDesc =
-    resolution.overallStrategy === "USE_LOCAL"
+    overallStrategy === "USE_LOCAL"
       ? "全部采用本地版本"
-      : resolution.overallStrategy === "USE_SERVER"
+      : overallStrategy === "USE_SERVER"
       ? "全部采用服务端版本"
-      : `逐字段合并（${resolution.fieldResolutions.length} 个字段）`;
+      : `逐字段合并（${fieldResolutions.length} 个字段）`;
+
+  const summaryOldValue: Record<string, { local: unknown; server: unknown }> = {};
+  for (const fr of fieldResolutions) {
+    summaryOldValue[fr.fieldName] = {
+      local: localData[fr.fieldName],
+      server: serverData[fr.fieldName],
+    };
+  }
+
+  const summaryNewValue: Record<string, { value: unknown; strategy: string }> = {};
+  for (const fr of fieldResolutions) {
+    let finalValue: unknown;
+    if (fr.strategy === "USE_LOCAL") {
+      finalValue = localData[fr.fieldName];
+    } else if (fr.strategy === "USE_SERVER") {
+      finalValue = serverData[fr.fieldName];
+    } else {
+      finalValue = fr.manualValue;
+    }
+    summaryNewValue[fr.fieldName] = {
+      value: finalValue,
+      strategy: fr.strategy,
+    };
+  }
 
   addOperationLog({
     entityType,
     entityId,
     operationType: "UPDATE",
-    fieldName: resolution.fieldResolutions.map((f) => f.fieldName).join(","),
-    oldValue: resolution.fieldResolutions.reduce(
-      (acc, f) => ({ ...acc, [f.fieldName]: { local: f.manualValue ?? undefined, server: undefined } }),
-      {}
-    ),
-    newValue: resolution.resolvedData,
+    fieldName: fieldResolutions.map((f) => f.fieldName).join(","),
+    oldValue: summaryOldValue,
+    newValue: {
+      ...resolvedData,
+      _conflictResolution: summaryNewValue,
+      _overallStrategy: overallStrategy,
+    },
     operator,
     description: `冲突解决：${entityLabel} · ${strategyDesc}`,
   });
 
-  for (const fr of resolution.fieldResolutions) {
+  for (const fr of fieldResolutions) {
     const strategyText =
       fr.strategy === "USE_LOCAL"
         ? "保留本地"
         : fr.strategy === "USE_SERVER"
         ? "采用服务端"
         : "手动合并";
+
+    let finalValue: unknown;
+    if (fr.strategy === "USE_LOCAL") {
+      finalValue = localData[fr.fieldName];
+    } else if (fr.strategy === "USE_SERVER") {
+      finalValue = serverData[fr.fieldName];
+    } else {
+      finalValue = fr.manualValue;
+    }
+
+    const fieldLabel = getFieldLabel(fr.fieldName);
+    const localDisplay = localData[fr.fieldName] === undefined || localData[fr.fieldName] === null || localData[fr.fieldName] === ""
+      ? "（空）"
+      : String(localData[fr.fieldName]);
+    const serverDisplay = serverData[fr.fieldName] === undefined || serverData[fr.fieldName] === null || serverData[fr.fieldName] === ""
+      ? "（空）"
+      : String(serverData[fr.fieldName]);
+    const finalDisplay = finalValue === undefined || finalValue === null || finalValue === ""
+      ? "（空）"
+      : String(finalValue);
+
     addOperationLog({
       entityType,
       entityId,
       operationType: "UPDATE",
       fieldName: fr.fieldName,
-      oldValue:
-        fr.strategy === "USE_SERVER"
-          ? { local: (resolution as any)._localRef?.[fr.fieldName], server: (resolution as any)._serverRef?.[fr.fieldName] }
-          : undefined,
-      newValue: fr.manualValue,
+      oldValue: {
+        field: fr.fieldName,
+        fieldLabel,
+        localOriginal: localData[fr.fieldName],
+        serverOriginal: serverData[fr.fieldName],
+        localDisplay,
+        serverDisplay,
+      },
+      newValue: {
+        field: fr.fieldName,
+        fieldLabel,
+        strategy: fr.strategy,
+        strategyText,
+        finalValue,
+        finalDisplay,
+      },
       operator,
-      description: `冲突字段 [${getFieldLabel(fr.fieldName)}]：${strategyText}`,
+      description: `冲突字段 [${fieldLabel}]：${strategyText} · 本地「${localDisplay}」${fr.strategy === "USE_SERVER" ? "→" : "←"} 服务端「${serverDisplay}」· 最终「${finalDisplay}」`,
     });
   }
 }
