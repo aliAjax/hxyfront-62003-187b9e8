@@ -24,10 +24,34 @@ export type SampleStatus =
   | "PHOTO_COMPLETED"
   | "CONFIRMED";
 
+export type ReviewPriority = "HIGH" | "MEDIUM" | "LOW";
+
+export const REVIEW_PRIORITY_LABELS: Record<ReviewPriority, string> = {
+  HIGH: "高优先级",
+  MEDIUM: "中优先级",
+  LOW: "低优先级",
+};
+
+export const REVIEW_PRIORITY_COLORS: Record<ReviewPriority, string> = {
+  HIGH: "#dc2626",
+  MEDIUM: "#d97706",
+  LOW: "#2563eb",
+};
+
+export const REVIEW_PRIORITY_ORDER: Record<ReviewPriority, number> = {
+  HIGH: 3,
+  MEDIUM: 2,
+  LOW: 1,
+};
+
+export const REVIEW_PRIORITIES: ReviewPriority[] = ["HIGH", "MEDIUM", "LOW"];
+
 export interface StatusHistoryRecord {
   id: string;
   oldStatus: SampleStatus | null;
   newStatus: SampleStatus;
+  oldPriority: ReviewPriority | null;
+  newPriority: ReviewPriority | null;
   timestamp: string;
   operator: string;
   note: string;
@@ -53,6 +77,7 @@ export interface Sample {
   storageTemperature: string;
   temperatureRecords: TemperatureRecord[];
   status: SampleStatus;
+  priority: ReviewPriority;
   statusHistory: StatusHistoryRecord[];
   createdAt: string;
   updatedAt: string;
@@ -134,7 +159,12 @@ export function loadSamples(): Sample[] {
       storageTemperature: s.storageTemperature || "",
       temperatureRecords: s.temperatureRecords || [],
       status: s.status || "PENDING_IDENTIFICATION",
-      statusHistory: s.statusHistory || [],
+      priority: s.priority || "MEDIUM",
+      statusHistory: (s.statusHistory || []).map((h: any) => ({
+        ...h,
+        oldPriority: h.oldPriority ?? null,
+        newPriority: h.newPriority ?? null,
+      })),
     }));
   } catch {
     return [];
@@ -181,15 +211,21 @@ export function updateSampleStatus(
   sampleId: string,
   newStatus: SampleStatus,
   note: string,
-  operator: string = "系统管理员"
+  operator: string = "系统管理员",
+  newPriority?: ReviewPriority
 ): Sample[] {
   const now = new Date().toISOString();
   return samples.map((s) => {
     if (s.id !== sampleId) return s;
+    const finalPriority = newPriority ?? s.priority;
+    const statusChanged = s.status !== newStatus;
+    const priorityChanged = newPriority !== undefined && s.priority !== newPriority;
     const historyRecord: StatusHistoryRecord = {
       id: generateStatusHistoryId(),
-      oldStatus: s.status,
-      newStatus,
+      oldStatus: statusChanged ? s.status : null,
+      newStatus: statusChanged ? newStatus : s.status,
+      oldPriority: priorityChanged ? s.priority : null,
+      newPriority: priorityChanged ? finalPriority : null,
       timestamp: now,
       operator,
       note,
@@ -197,9 +233,18 @@ export function updateSampleStatus(
     return {
       ...s,
       status: newStatus,
+      priority: finalPriority,
       statusHistory: [...s.statusHistory, historyRecord],
       updatedAt: now,
     };
+  });
+}
+
+export function sortSamplesByPriorityAndTime(samples: Sample[]): Sample[] {
+  return [...samples].sort((a, b) => {
+    const priorityDiff = REVIEW_PRIORITY_ORDER[b.priority] - REVIEW_PRIORITY_ORDER[a.priority];
+    if (priorityDiff !== 0) return priorityDiff;
+    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
   });
 }
 

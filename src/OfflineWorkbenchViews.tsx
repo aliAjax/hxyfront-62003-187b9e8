@@ -4,10 +4,14 @@ import {
   Sample,
   TemperatureRecord,
   SampleStatus,
+  ReviewPriority,
   StatusHistoryRecord,
   SAMPLE_STATUS_LABELS,
   SAMPLE_STATUS_COLORS,
   STATUS_TRANSITIONS,
+  REVIEW_PRIORITY_LABELS,
+  REVIEW_PRIORITY_COLORS,
+  REVIEW_PRIORITIES,
   formatDateTime,
   getSortedTemperatureRecords,
   calculateTemperatureStats,
@@ -369,7 +373,7 @@ export function SampleDetailView({
   allSamples: SyncedSample[];
   onBack: () => void;
   onUpdate: (id: string, updates: Partial<Sample>) => void;
-  onUpdateStatus: (id: string, newStatus: SampleStatus, note: string) => void;
+  onUpdateStatus: (id: string, newStatus: SampleStatus, note: string, newPriority?: ReviewPriority) => void;
   onAddTempRecord: (sampleId: string, record: Omit<TemperatureRecord, "id">) => void;
   onDeleteTempRecord: (sampleId: string, recordId: string) => void;
 }) {
@@ -383,6 +387,7 @@ export function SampleDetailView({
   const [showStatusDialog, setShowStatusDialog] = useState(false);
   const [statusDialogNote, setStatusDialogNote] = useState("");
   const [statusDialogTarget, setStatusDialogTarget] = useState<SampleStatus | null>(null);
+  const [statusDialogPriority, setStatusDialogPriority] = useState<ReviewPriority | null>(null);
 
   useEffect(() => {
     setFormData(sample);
@@ -454,14 +459,16 @@ export function SampleDetailView({
   const handleStatusChangeClick = (target: SampleStatus) => {
     setStatusDialogTarget(target);
     setStatusDialogNote("");
+    setStatusDialogPriority(sample.priority);
     setShowStatusDialog(true);
   };
 
   const handleConfirmStatusChange = () => {
     if (statusDialogTarget) {
-      onUpdateStatus(sample.id, statusDialogTarget, statusDialogNote || "状态变更");
+      onUpdateStatus(sample.id, statusDialogTarget, statusDialogNote || "状态变更", statusDialogPriority ?? undefined);
       setShowStatusDialog(false);
       setStatusDialogTarget(null);
+      setStatusDialogPriority(null);
     }
   };
 
@@ -902,6 +909,40 @@ export function SampleDetailView({
                     {SAMPLE_STATUS_LABELS[statusDialogTarget]}
                   </span>
                 </div>
+                <div className="status-change-row">
+                  <span className="status-change-label">当前优先级</span>
+                  <span
+                    className="status-change-value"
+                    style={{ color: REVIEW_PRIORITY_COLORS[sample.priority] }}
+                  >
+                    {REVIEW_PRIORITY_LABELS[sample.priority]}
+                  </span>
+                </div>
+              </div>
+              <div className="dialog-form-row">
+                <label>
+                  <span>调整复核优先级</span>
+                  <div className="priority-selector">
+                    {REVIEW_PRIORITIES.map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        className={`priority-option ${statusDialogPriority === p ? "selected" : ""}`}
+                        style={{
+                          "--priority-color": REVIEW_PRIORITY_COLORS[p],
+                        } as React.CSSProperties}
+                        onClick={() => setStatusDialogPriority(p)}
+                      >
+                        <span className="priority-option-icon">
+                          {p === "HIGH" ? "🔴" : p === "MEDIUM" ? "🟡" : "🔵"}
+                        </span>
+                        <span className="priority-option-label">
+                          {REVIEW_PRIORITY_LABELS[p]}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </label>
               </div>
               <div className="dialog-form-row">
                 <label>

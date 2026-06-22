@@ -3,10 +3,15 @@ import {
   Sample,
   SampleStatus,
   StatusHistoryRecord,
+  ReviewPriority,
   SAMPLE_STATUS_LABELS,
   SAMPLE_STATUS_COLORS,
   STATUS_TRANSITIONS,
+  REVIEW_PRIORITY_LABELS,
+  REVIEW_PRIORITY_COLORS,
+  REVIEW_PRIORITIES,
   formatDateTime,
+  sortSamplesByPriorityAndTime,
 } from "./batchStorage";
 
 interface IdentificationQueueProps {
@@ -16,7 +21,8 @@ interface IdentificationQueueProps {
   onUpdateStatus: (
     sampleId: string,
     newStatus: SampleStatus,
-    note: string
+    note: string,
+    newPriority?: ReviewPriority
   ) => void;
 }
 
@@ -48,10 +54,11 @@ export default function IdentificationQueue({
     targetStatus: SampleStatus;
   } | null>(null);
   const [reviewNote, setReviewNote] = useState("");
+  const [selectedPriority, setSelectedPriority] = useState<ReviewPriority | null>(null);
   const [historyDialog, setHistoryDialog] = useState<Sample | null>(null);
 
   const getSamplesByStatus = (status: SampleStatus) =>
-    samples.filter((s) => s.status === status);
+    sortSamplesByPriorityAndTime(samples.filter((s) => s.status === status));
 
   const statusCounts: Record<SampleStatus, number> = {
     PENDING_IDENTIFICATION: getSamplesByStatus("PENDING_IDENTIFICATION").length,
@@ -62,8 +69,8 @@ export default function IdentificationQueue({
 
   const filteredSamples =
     selectedStatus === "ALL"
-      ? samples
-      : samples.filter((s) => s.status === selectedStatus);
+      ? sortSamplesByPriorityAndTime(samples)
+      : sortSamplesByPriorityAndTime(samples.filter((s) => s.status === selectedStatus));
 
   const handleOpenStatusDialog = (
     sample: Sample,
@@ -73,6 +80,7 @@ export default function IdentificationQueue({
     e.stopPropagation();
     setStatusDialog({ sample, targetStatus });
     setReviewNote("");
+    setSelectedPriority(sample.priority);
   };
 
   const handleConfirmStatusChange = () => {
@@ -80,11 +88,26 @@ export default function IdentificationQueue({
     onUpdateStatus(
       statusDialog.sample.id,
       statusDialog.targetStatus,
-      reviewNote.trim()
+      reviewNote.trim(),
+      selectedPriority ?? undefined
     );
     setStatusDialog(null);
     setReviewNote("");
+    setSelectedPriority(null);
   };
+
+  const PriorityBadge = ({ priority }: { priority: ReviewPriority }) => (
+    <span
+      className="queue-priority-badge"
+      style={{
+        backgroundColor: `${REVIEW_PRIORITY_COLORS[priority]}15`,
+        color: REVIEW_PRIORITY_COLORS[priority],
+        borderColor: `${REVIEW_PRIORITY_COLORS[priority]}40`,
+      }}
+    >
+      {priority === "HIGH" ? "🔴" : priority === "MEDIUM" ? "🟡" : "🔵"} {REVIEW_PRIORITY_LABELS[priority]}
+    </span>
+  );
 
   const StatusBadge = ({ status }: { status: SampleStatus }) => (
     <span
@@ -110,7 +133,10 @@ export default function IdentificationQueue({
         <div className="queue-card-header">
           <div className="queue-card-title-section">
             <h3 className="queue-card-number">{sample.sampleNumber}</h3>
-            <StatusBadge status={sample.status} />
+            <div className="queue-card-badges">
+              <StatusBadge status={sample.status} />
+              <PriorityBadge priority={sample.priority} />
+            </div>
           </div>
           <button
             className="queue-history-btn"
@@ -325,6 +351,36 @@ export default function IdentificationQueue({
                   <span className="status-change-label">目标状态</span>
                   <StatusBadge status={statusDialog.targetStatus} />
                 </div>
+                <div className="status-change-row">
+                  <span className="status-change-label">当前优先级</span>
+                  <PriorityBadge priority={statusDialog.sample.priority} />
+                </div>
+              </div>
+
+              <div className="dialog-form-row">
+                <label>
+                  <span>调整复核优先级</span>
+                  <div className="priority-selector">
+                    {REVIEW_PRIORITIES.map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        className={`priority-option ${selectedPriority === p ? "selected" : ""}`}
+                        style={{
+                          "--priority-color": REVIEW_PRIORITY_COLORS[p],
+                        } as React.CSSProperties}
+                        onClick={() => setSelectedPriority(p)}
+                      >
+                        <span className="priority-option-icon">
+                          {p === "HIGH" ? "🔴" : p === "MEDIUM" ? "🟡" : "🔵"}
+                        </span>
+                        <span className="priority-option-label">
+                          {REVIEW_PRIORITY_LABELS[p]}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </label>
               </div>
 
               <div className="dialog-form-row">
@@ -397,7 +453,11 @@ export default function IdentificationQueue({
                             className="timeline-dot"
                             style={{
                               backgroundColor:
-                                SAMPLE_STATUS_COLORS[record.newStatus],
+                                record.oldStatus
+                                  ? SAMPLE_STATUS_COLORS[record.newStatus]
+                                  : record.newPriority
+                                    ? REVIEW_PRIORITY_COLORS[record.newPriority]
+                                    : SAMPLE_STATUS_COLORS[record.newStatus],
                             }}
                           />
                           {index < arr.length - 1 && (
@@ -421,15 +481,43 @@ export default function IdentificationQueue({
                                   <span className="timeline-arrow">→</span>
                                 </>
                               )}
-                              <span
-                                className="timeline-status"
-                                style={{
-                                  backgroundColor: `${SAMPLE_STATUS_COLORS[record.newStatus]}15`,
-                                  color: SAMPLE_STATUS_COLORS[record.newStatus],
-                                }}
-                              >
-                                {SAMPLE_STATUS_LABELS[record.newStatus]}
-                              </span>
+                              {record.oldStatus || record.newStatus ? (
+                                <span
+                                  className="timeline-status"
+                                  style={{
+                                    backgroundColor: `${SAMPLE_STATUS_COLORS[record.newStatus]}15`,
+                                    color: SAMPLE_STATUS_COLORS[record.newStatus],
+                                  }}
+                                >
+                                  {SAMPLE_STATUS_LABELS[record.newStatus]}
+                                </span>
+                              ) : null}
+                              {record.oldPriority && (
+                                <>
+                                  {record.oldStatus && <span className="timeline-separator">·</span>}
+                                  <span
+                                    className="timeline-status"
+                                    style={{
+                                      backgroundColor: `${REVIEW_PRIORITY_COLORS[record.oldPriority]}15`,
+                                      color: REVIEW_PRIORITY_COLORS[record.oldPriority],
+                                    }}
+                                  >
+                                    {REVIEW_PRIORITY_LABELS[record.oldPriority]}
+                                  </span>
+                                  <span className="timeline-arrow">→</span>
+                                </>
+                              )}
+                              {record.newPriority && (
+                                <span
+                                  className="timeline-status"
+                                  style={{
+                                    backgroundColor: `${REVIEW_PRIORITY_COLORS[record.newPriority]}15`,
+                                    color: REVIEW_PRIORITY_COLORS[record.newPriority],
+                                  }}
+                                >
+                                  {REVIEW_PRIORITY_LABELS[record.newPriority]}
+                                </span>
+                              )}
                             </div>
                             {index === 0 && (
                               <span className="timeline-latest-tag">最新</span>
@@ -442,6 +530,15 @@ export default function IdentificationQueue({
                             <span className="timeline-operator">
                               👤 {record.operator}
                             </span>
+                            {(record.oldStatus || record.oldPriority) && (
+                              <span className="timeline-change-type">
+                                {record.oldStatus && record.oldPriority
+                                  ? "状态 & 优先级变更"
+                                  : record.oldPriority
+                                    ? "优先级调整"
+                                    : "状态变更"}
+                              </span>
+                            )}
                           </div>
                           {record.note && (
                             <div className="timeline-note">

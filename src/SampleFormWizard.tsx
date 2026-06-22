@@ -171,11 +171,14 @@ export default function SampleFormWizard({
       storageTemperature: draft.storageTemperature.trim(),
       temperatureRecords: [],
       status: "PENDING_IDENTIFICATION",
+      priority: "MEDIUM",
       statusHistory: [
         {
           id: generateStatusHistoryId(),
           oldStatus: null,
           newStatus: "PENDING_IDENTIFICATION",
+          oldPriority: null,
+          newPriority: "MEDIUM",
           timestamp: now,
           operator: "系统",
           note: "通过表单向导创建样本",

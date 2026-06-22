@@ -4,6 +4,7 @@ import {
   Sample,
   TemperatureRecord,
   SampleStatus,
+  ReviewPriority,
   StatusHistoryRecord,
   SAMPLE_STATUS_LABELS,
   SAMPLE_STATUS_COLORS,
@@ -136,6 +137,7 @@ export default function OfflineWorkbench() {
         "NEEDS_REVIEW",
         "CONFIRMED",
       ];
+      const initialPriorities: ReviewPriority[] = ["HIGH", "MEDIUM", "LOW"];
       const demoSamples: SyncedSample[] = [
         {
           id: generateSampleId(),
@@ -164,11 +166,14 @@ export default function OfflineWorkbench() {
             },
           ],
           status: initialStatuses[0],
+          priority: initialPriorities[0],
           statusHistory: [
             {
               id: generateStatusHistoryId(),
               oldStatus: null,
               newStatus: initialStatuses[0],
+              oldPriority: null,
+              newPriority: initialPriorities[0],
               timestamp: now,
               operator: "系统初始化",
               note: "创建样本，初始状态",
@@ -205,11 +210,14 @@ export default function OfflineWorkbench() {
           storageTemperature: "25",
           temperatureRecords: [],
           status: initialStatuses[1],
+          priority: initialPriorities[1],
           statusHistory: [
             {
               id: generateStatusHistoryId(),
               oldStatus: null,
               newStatus: initialStatuses[1],
+              oldPriority: null,
+              newPriority: initialPriorities[1],
               timestamp: now,
               operator: "系统初始化",
               note: "蛹期样本需复核",
@@ -389,6 +397,8 @@ export default function OfflineWorkbench() {
         id: generateStatusHistoryId(),
         oldStatus: null,
         newStatus: "PENDING_IDENTIFICATION",
+        oldPriority: null,
+        newPriority: "MEDIUM",
         timestamp: now,
         operator: "现场勘查员",
         note: "创建样本",
@@ -415,6 +425,7 @@ export default function OfflineWorkbench() {
         storageTemperature: "",
         temperatureRecords: [],
         status: "PENDING_IDENTIFICATION",
+        priority: "MEDIUM",
         statusHistory: [historyRecord],
         createdAt: now,
         updatedAt: now,
@@ -475,9 +486,9 @@ export default function OfflineWorkbench() {
   );
 
   const handleUpdateSampleStatus = useCallback(
-    (sampleId: string, newStatus: SampleStatus, note: string) => {
+    (sampleId: string, newStatus: SampleStatus, note: string, newPriority?: ReviewPriority) => {
       setSamples((prev) => {
-        const updated = baseUpdateSampleStatus(prev, sampleId, newStatus, note);
+        const updated = baseUpdateSampleStatus(prev, sampleId, newStatus, note, "系统管理员", newPriority);
         return updated.map((s) => {
           const previous = prev.find((p) => p.id === s.id);
           if (!previous) return s as SyncedSample;
@@ -493,10 +504,10 @@ export default function OfflineWorkbench() {
         entityType: "SAMPLE",
         entityId: sampleId,
         operationType: "UPDATE",
-        description: `样本状态变更: ${sample?.status || ""} → ${newStatus}`,
-        fieldName: "status",
-        oldValue: sample?.status,
-        newValue: newStatus,
+        description: `样本状态变更: ${sample?.status || ""} → ${newStatus}${newPriority ? `，优先级调整: ${sample?.priority || ""} → ${newPriority}` : ""}`,
+        fieldName: "status" + (newPriority ? ",priority" : ""),
+        oldValue: { status: sample?.status, priority: sample?.priority },
+        newValue: { status: newStatus, priority: newPriority },
       });
     },
     [samples, recordOperation]

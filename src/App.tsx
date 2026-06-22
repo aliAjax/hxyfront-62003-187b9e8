@@ -10,6 +10,7 @@ import {
   SampleBatch,
   Sample,
   SampleStatus,
+  ReviewPriority,
   StatusHistoryRecord,
   loadBatches,
   saveBatches,
@@ -130,12 +131,16 @@ function App() {
     if (loadedSamples.length === 0) {
       const now = new Date().toISOString();
       const initialStatuses: SampleStatus[] = ["PENDING_IDENTIFICATION", "NEEDS_REVIEW", "PHOTO_COMPLETED"];
+      const initialPriorities: ReviewPriority[] = ["HIGH", "MEDIUM", "LOW"];
       const initialSamples: Sample[] = project.records.map((record, index) => {
         const status: SampleStatus = initialStatuses[index] || "PENDING_IDENTIFICATION";
+        const priority: ReviewPriority = initialPriorities[index] || "MEDIUM";
         const statusHistory: StatusHistoryRecord[] = [{
           id: generateStatusHistoryId(),
           oldStatus: null,
           newStatus: status,
+          oldPriority: null,
+          newPriority: priority,
           timestamp: now,
           operator: "系统初始化",
           note: "样本创建，初始状态设置",
@@ -160,6 +165,7 @@ function App() {
           storageTemperature: "",
           temperatureRecords: [],
           status,
+          priority,
           statusHistory,
           createdAt: now,
           updatedAt: now,
@@ -172,7 +178,7 @@ function App() {
       let needsMigration = false;
       const migratedSamples = loadedSamples.map((sample) => {
         let changed = false;
-        const newSample = { ...sample };
+        const newSample = { ...sample } as Sample;
         const record = recordData[sample.sampleNumber];
         if (!newSample.samplingLocation) {
           if (record?.location) {
@@ -214,16 +220,32 @@ function App() {
           newSample.status = inferredStatus;
           changed = true;
         }
+        if (!newSample.priority) {
+          newSample.priority = "MEDIUM";
+          changed = true;
+        }
         if (!newSample.statusHistory || newSample.statusHistory.length === 0) {
           newSample.statusHistory = [{
             id: generateStatusHistoryId(),
             oldStatus: null,
             newStatus: newSample.status,
+            oldPriority: null,
+            newPriority: newSample.priority,
             timestamp: sample.createdAt || now,
             operator: "数据迁移",
             note: "系统自动推断初始状态",
           }];
           changed = true;
+        } else {
+          const migratedHistory = newSample.statusHistory.map((h: any) => ({
+            ...h,
+            oldPriority: h.oldPriority ?? null,
+            newPriority: h.newPriority ?? null,
+          }));
+          if (JSON.stringify(migratedHistory) !== JSON.stringify(newSample.statusHistory)) {
+            newSample.statusHistory = migratedHistory;
+            changed = true;
+          }
         }
         if (changed) {
           newSample.updatedAt = now;
@@ -320,9 +342,10 @@ function App() {
   const handleUpdateSampleStatus = (
     sampleId: string,
     newStatus: SampleStatus,
-    note: string
+    note: string,
+    newPriority?: ReviewPriority
   ) => {
-    setSamples((prev) => updateSampleStatus(prev, sampleId, newStatus, note));
+    setSamples((prev) => updateSampleStatus(prev, sampleId, newStatus, note, "系统管理员", newPriority));
   };
 
   const handleOpenWizard = () => {

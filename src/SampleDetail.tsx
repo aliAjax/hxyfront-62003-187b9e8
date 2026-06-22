@@ -47,7 +47,7 @@ interface SampleDetailProps {
 function pickBaseFields(s: Sample): Partial<Sample> {
   const result: Partial<Sample> = {};
   for (const k of EDITABLE_BASE_FIELDS) {
-    result[k] = s[k];
+    (result as Record<string, unknown>)[k] = s[k];
   }
   return result;
 }
