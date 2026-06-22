@@ -26,6 +26,14 @@ const REVIEW_STATUS_OPTIONS: Array<{ value: ReviewStatusOption; label: string }>
   { value: "CONFIRMED", label: "已确认" },
 ];
 
+type ExportTemplate = "FIELD_REPORT" | "LAB_HANDOVER" | "CASE_ARCHIVE";
+
+const EXPORT_TEMPLATES: Array<{ value: ExportTemplate; label: string; icon: string; description: string }> = [
+  { value: "FIELD_REPORT", label: "现场快速汇报", icon: "🚓", description: "简洁突出现场情况，适用于案情通报" },
+  { value: "LAB_HANDOVER", label: "实验室交接", icon: "🧪", description: "强调保存条件与待处理项，适用于样本转交" },
+  { value: "CASE_ARCHIVE", label: "案件归档", icon: "📁", description: "信息完整格式规范，适用于档案留存" },
+];
+
 export default function SampleExportSummary({
   samples,
   batches,
@@ -35,6 +43,7 @@ export default function SampleExportSummary({
   const [selectedDevelopmentStage, setSelectedDevelopmentStage] = useState<string>("");
   const [selectedPreservationMethod, setSelectedPreservationMethod] = useState<string>("");
   const [selectedReviewStatus, setSelectedReviewStatus] = useState<ReviewStatusOption>("ALL");
+  const [selectedTemplate, setSelectedTemplate] = useState<ExportTemplate>("FIELD_REPORT");
   const [copyFeedback, setCopyFeedback] = useState("");
 
   const allCaseNumbers = useMemo(() => getAllCaseNumbers(batches, samples), [batches, samples]);
@@ -80,62 +89,244 @@ export default function SampleExportSummary({
     return items;
   };
 
-  const getSummaryText = (): string => {
-    if (filteredSamples.length === 0) return "";
-
+  const getFilterHeader = (): string[] => {
     const lines: string[] = [];
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-
-    lines.push("=" .repeat(60));
-    lines.push("法医昆虫学样本导出摘要");
-    lines.push(`导出时间: ${dateStr}`);
-    lines.push(`筛选条件:`);
     if (selectedCase) lines.push(`  - 案件: ${selectedCase}`);
     if (selectedDevelopmentStage) lines.push(`  - 发育阶段: ${selectedDevelopmentStage}`);
     if (selectedPreservationMethod) lines.push(`  - 保存方式: ${selectedPreservationMethod}`);
     const statusLabel = REVIEW_STATUS_OPTIONS.find((o) => o.value === selectedReviewStatus)?.label;
     if (statusLabel && selectedReviewStatus !== "ALL") lines.push(`  - 复核状态: ${statusLabel}`);
     lines.push(`  - 样本总数: ${filteredSamples.length} 条`);
-    lines.push("=".repeat(60));
+    return lines;
+  };
+
+  const getFieldReportSummary = (): string => {
+    if (filteredSamples.length === 0) return "";
+    const lines: string[] = [];
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const templateInfo = EXPORT_TEMPLATES.find((t) => t.value === "FIELD_REPORT")!;
+
+    lines.push("═".repeat(56));
+    lines.push(`【${templateInfo.icon} ${templateInfo.label}】`);
+    lines.push(`生成时间: ${dateStr}`);
+    lines.push(`筛选范围:`);
+    lines.push(...getFilterHeader());
+    lines.push("═".repeat(56));
     lines.push("");
 
     filteredSamples.forEach((sample, index) => {
-      lines.push(`【样本 ${index + 1}】${sample.sampleNumber}`);
-      lines.push("-" .repeat(50));
-      lines.push(`  批次编号: ${sample.sampleNumber}`);
-      lines.push(`  采样地点: ${sample.samplingLocation || "未填写"}`);
-      lines.push(`  关联案件: ${sample.relatedCase || "未关联"}`);
-      lines.push(`  温度范围: ${getTemperatureRange(sample)}`);
-
-      const species = sample.insectSpecies?.trim();
-      lines.push(`  主要昆虫种类: ${species || "未鉴定"}`);
-
-      lines.push(`  发育阶段: ${sample.developmentStage || "未填写"}`);
-      lines.push(`  保存方式: ${sample.preservationMethod || "未填写"}`);
-      if (sample.preservationSolution?.trim()) {
-        lines.push(`  保存溶液: ${sample.preservationSolution}`);
-      }
-      lines.push(`  复核状态: ${SAMPLE_STATUS_LABELS[sample.status]}`);
-
       const pendingItems = getPendingItems(sample);
-      lines.push(`  待处理项: ${pendingItems.length > 0 ? pendingItems.join("、") : "无"}`);
-
+      const hasUrgent = pendingItems.length > 0;
+      lines.push(`■ 样本${index + 1} · ${sample.sampleNumber}${hasUrgent ? "  ⚠️待跟进" : ""}`);
+      lines.push("─".repeat(48));
+      lines.push(`  【现场位置】${sample.samplingLocation || "（未记录）"}`);
+      lines.push(`  【关联案件】${sample.relatedCase || "（待关联）"}`);
+      lines.push(`  【暴露阶段】${sample.exposureStage || "（未填写）"}  ·  环境温度 ${sample.environmentTemperature ? sample.environmentTemperature + "℃" : "无记录"}`);
+      const species = sample.insectSpecies?.trim();
+      lines.push(`  【发现虫种】${species || "尚未鉴定"}${sample.insectCount ? `  数量约 ${sample.insectCount}` : ""}`);
+      lines.push(`  【发育阶段】${sample.developmentStage || "（未填写）"}  ·  采集方式 ${sample.insectCollectionMethod || "未记录"}`);
+      lines.push(`  【初步处理】${sample.preservationMethod || "（未填写）"}${sample.preservationSolution ? ` / ${sample.preservationSolution}` : ""}`);
+      if (hasUrgent) {
+        lines.push(`  【⚠️ 待处理】${pendingItems.join(" → ")}`);
+      }
       const notes = sample.identificationNotes?.trim();
-      lines.push(`  鉴定备注: ${notes || "无"}`);
-
+      if (notes) {
+        lines.push(`  【现场备注】${notes}`);
+      }
       lines.push("");
     });
 
-    lines.push("=".repeat(60));
-    lines.push(`摘要结束 · 共 ${filteredSamples.length} 条记录`);
-    lines.push("=".repeat(60));
+    const totalPending = filteredSamples.reduce((acc, s) => acc + getPendingItems(s).length, 0);
+    lines.push("═".repeat(56));
+    lines.push(`▲ 汇总: ${filteredSamples.length} 份样本${totalPending > 0 ? `，共 ${totalPending} 项待跟进` : "，无待办项"}`);
+    lines.push("═".repeat(56));
 
     return lines.join("\n");
   };
 
-  const summaryText = useMemo(getSummaryText, [filteredSamples, selectedCase, selectedDevelopmentStage, selectedPreservationMethod, selectedReviewStatus]);
+  const getLabHandoverSummary = (): string => {
+    if (filteredSamples.length === 0) return "";
+    const lines: string[] = [];
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const templateInfo = EXPORT_TEMPLATES.find((t) => t.value === "LAB_HANDOVER")!;
+
+    lines.push("╔" + "═".repeat(54) + "╗");
+    lines.push(`║  ${templateInfo.icon} ${templateInfo.label}`.padEnd(56) + "║");
+    lines.push(`║  交接时间: ${dateStr}`.padEnd(56) + "║");
+    lines.push(`║  交接清单: 共 ${filteredSamples.length} 份样本`.padEnd(56) + "║");
+    lines.push("╚" + "═".repeat(54) + "╝");
+    lines.push("");
+    lines.push("── 筛选条件 ──");
+    lines.push(...getFilterHeader());
+    lines.push("");
+
+    filteredSamples.forEach((sample, index) => {
+      const pendingItems = getPendingItems(sample);
+      lines.push(`┌─ 样本 ${String(index + 1).padStart(2, "0")} ─ ${sample.sampleNumber} ─┐`);
+      lines.push(`│ 案件编号: ${sample.relatedCase || "—"}`);
+      lines.push(`│ 采样来源: ${sample.samplingLocation || "—"}`);
+      lines.push(`│`);
+      lines.push(`│ ◆ 保存信息`);
+      lines.push(`│   保存方式: ${sample.preservationMethod || "未填写"}`);
+      if (sample.preservationSolution?.trim()) {
+        lines.push(`│   保存溶液: ${sample.preservationSolution}`);
+      }
+      lines.push(`│   存储温度: ${sample.storageTemperature ? sample.storageTemperature + "℃" : "未指定"}`);
+      lines.push(`│   温度记录: ${getTemperatureRange(sample)}（共 ${sample.temperatureRecords.length} 条）`);
+      lines.push(`│`);
+      lines.push(`│ ◆ 样本内容`);
+      lines.push(`│   昆虫种类: ${sample.insectSpecies?.trim() || "未鉴定"}`);
+      lines.push(`│   发育阶段: ${sample.developmentStage || "未填写"}`);
+      lines.push(`│   采集数量: ${sample.insectCount || "未记录"}`);
+      lines.push(`│   采集方法: ${sample.insectCollectionMethod || "未记录"}`);
+      lines.push(`│`);
+      lines.push(`│ ◆ 交接状态`);
+      lines.push(`│   当前状态: ${SAMPLE_STATUS_LABELS[sample.status]}`);
+      if (pendingItems.length > 0) {
+        lines.push(`│   ⚠ 实验室待办:`);
+        pendingItems.forEach((item) => lines.push(`│     · ${item}`));
+      } else {
+        lines.push(`│   ✓ 无待办事项`);
+      }
+      const notes = sample.identificationNotes?.trim();
+      if (notes) {
+        lines.push(`│`);
+        lines.push(`│ ◆ 鉴定备注: ${notes}`);
+      }
+      lines.push(`└${"─".repeat(42)}┘`);
+      lines.push("");
+    });
+
+    const labPendingCount = filteredSamples.filter((s) => getPendingItems(s).length > 0).length;
+    lines.push("═══ 交接确认 ═══");
+    lines.push(`  样本总数: ${filteredSamples.length} 份`);
+    lines.push(`  需处理样本: ${labPendingCount} 份`);
+    lines.push(`  已齐备样本: ${filteredSamples.length - labPendingCount} 份`);
+    lines.push(`  交接人: ____________    接收人: ____________`);
+    lines.push(`  交接日期: ${dateStr.split(" ")[0]}`);
+
+    return lines.join("\n");
+  };
+
+  const getCaseArchiveSummary = (): string => {
+    if (filteredSamples.length === 0) return "";
+    const lines: string[] = [];
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const templateInfo = EXPORT_TEMPLATES.find((t) => t.value === "CASE_ARCHIVE")!;
+    const year = now.getFullYear();
+
+    const archiveNumber = `GA-FEI-${year}-${String(filteredSamples.length).padStart(4, "0")}`;
+
+    lines.push("┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓");
+    lines.push(`┃  ${templateInfo.icon} ${templateInfo.label}`);
+    lines.push(`┃  档案编号: ${archiveNumber}`);
+    lines.push(`┃  归档日期: ${dateStr}`);
+    lines.push(`┃  样本数量: ${filteredSamples.length} 份`);
+    lines.push("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛");
+    lines.push("");
+    lines.push("━━━ 检索条件 ━━━");
+    lines.push(...getFilterHeader());
+    lines.push("");
+
+    const groupedByCase = filteredSamples.reduce<Record<string, Sample[]>>((acc, s) => {
+      const key = s.relatedCase?.trim() || "未关联案件";
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(s);
+      return acc;
+    }, {});
+
+    Object.entries(groupedByCase).forEach(([caseKey, caseSamples], caseIdx) => {
+      lines.push(`┌──────────────────────────────────────────────────────┐`);
+      lines.push(`│ 卷宗 ${String(caseIdx + 1).padStart(2, "0")}: ${caseKey}  （${caseSamples.length} 份样本）`);
+      lines.push(`└──────────────────────────────────────────────────────┘`);
+      lines.push("");
+
+      caseSamples.forEach((sample, idx) => {
+        lines.push(`  【档案条目 ${String(caseIdx + 1).padStart(2, "0")}-${String(idx + 1).padStart(2, "0")}】`);
+        lines.push(`  ──────────────────────────────────────`);
+        lines.push(`  1. 样本标识`);
+        lines.push(`     · 样本编号: ${sample.sampleNumber}`);
+        lines.push(`     · 关联案件: ${caseKey}`);
+        lines.push(`     · 创建时间: ${sample.createdAt ? new Date(sample.createdAt).toLocaleString("zh-CN") : "无记录"}`);
+        lines.push("");
+        lines.push(`  2. 采样信息`);
+        lines.push(`     · 采样地点: ${sample.samplingLocation || "未记录"}`);
+        lines.push(`     · 环境温度: ${sample.environmentTemperature ? sample.environmentTemperature + "℃" : "未记录"}`);
+        lines.push(`     · 相对湿度: ${sample.environmentHumidity ? sample.environmentHumidity + "%" : "未记录"}`);
+        lines.push(`     · 天气状况: ${sample.weatherCondition || "未记录"}`);
+        lines.push(`     · 暴露阶段: ${sample.exposureStage || "未填写"}`);
+        if (sample.exposureNotes?.trim()) {
+          lines.push(`     · 暴露备注: ${sample.exposureNotes}`);
+        }
+        lines.push("");
+        lines.push(`  3. 昆虫学数据`);
+        lines.push(`     · 昆虫种类: ${sample.insectSpecies?.trim() || "未鉴定"}`);
+        lines.push(`     · 发育阶段: ${sample.developmentStage || "未填写"}`);
+        lines.push(`     · 采集数量: ${sample.insectCount || "未记录"}`);
+        lines.push(`     · 采集方法: ${sample.insectCollectionMethod || "未记录"}`);
+        lines.push("");
+        lines.push(`  4. 保存与存储`);
+        lines.push(`     · 保存方式: ${sample.preservationMethod || "未填写"}`);
+        lines.push(`     · 保存溶液: ${sample.preservationSolution?.trim() || "无"}`);
+        lines.push(`     · 存储温度: ${sample.storageTemperature ? sample.storageTemperature + "℃" : "未指定"}`);
+        lines.push(`     · 温控记录: ${getTemperatureRange(sample)}（${sample.temperatureRecords.length} 条记录）`);
+        lines.push("");
+        lines.push(`  5. 流程状态`);
+        lines.push(`     · 复核状态: ${SAMPLE_STATUS_LABELS[sample.status]}`);
+        const pendingItems = getPendingItems(sample);
+        lines.push(`     · 待完善项: ${pendingItems.length > 0 ? pendingItems.join("；") : "无"}`);
+        lines.push("");
+        const notes = sample.identificationNotes?.trim();
+        lines.push(`  6. 鉴定备注归档`);
+        lines.push(`     ${notes ? notes : "（无备注内容）"}`);
+        lines.push("");
+      });
+    });
+
+    lines.push("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    lines.push("◆ 归档统计汇总");
+    lines.push(`   · 案件卷宗数: ${Object.keys(groupedByCase).length} 宗`);
+    lines.push(`   · 样本总份数: ${filteredSamples.length} 份`);
+    const confirmedCount = filteredSamples.filter((s) => s.status === "CONFIRMED").length;
+    lines.push(`   · 已确认归档: ${confirmedCount} 份`);
+    lines.push(`   · 流程中样本: ${filteredSamples.length - confirmedCount} 份`);
+    const totalNotes = filteredSamples.filter((s) => s.identificationNotes?.trim()).length;
+    lines.push(`   · 含鉴定备注: ${totalNotes} 份`);
+    lines.push("");
+    lines.push(`归档员签字: ______________    日期: ${dateStr.split(" ")[0]}`);
+    lines.push(`审核人签字: ______________    日期: ______________`);
+    lines.push("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+    return lines.join("\n");
+  };
+
+  const getSummaryText = (): string => {
+    switch (selectedTemplate) {
+      case "FIELD_REPORT":
+        return getFieldReportSummary();
+      case "LAB_HANDOVER":
+        return getLabHandoverSummary();
+      case "CASE_ARCHIVE":
+        return getCaseArchiveSummary();
+      default:
+        return getFieldReportSummary();
+    }
+  };
+
+  const summaryText = useMemo(getSummaryText, [
+    filteredSamples,
+    selectedCase,
+    selectedDevelopmentStage,
+    selectedPreservationMethod,
+    selectedReviewStatus,
+    selectedTemplate,
+  ]);
 
   const handleCopy = async () => {
     if (!summaryText) return;
@@ -262,10 +453,45 @@ export default function SampleExportSummary({
         </div>
       </div>
 
+      <div className="export-template-panel panel">
+        <div className="panel-heading-row">
+          <h2 className="panel-heading-title">📑 导出模板</h2>
+          <span className="template-current-badge">
+            当前: {EXPORT_TEMPLATES.find((t) => t.value === selectedTemplate)?.icon}{" "}
+            {EXPORT_TEMPLATES.find((t) => t.value === selectedTemplate)?.label}
+          </span>
+        </div>
+        <div className="template-selector-grid">
+          {EXPORT_TEMPLATES.map((tpl) => {
+            const isActive = selectedTemplate === tpl.value;
+            return (
+              <button
+                key={tpl.value}
+                className={`template-card ${isActive ? "active" : ""}`}
+                onClick={() => setSelectedTemplate(tpl.value)}
+              >
+                <div className="template-card-icon">{tpl.icon}</div>
+                <div className="template-card-body">
+                  <div className="template-card-title">{tpl.label}</div>
+                  <div className="template-card-desc">{tpl.description}</div>
+                </div>
+                {isActive && <div className="template-card-check">✓</div>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {filteredSamples.length > 0 && (
         <div className="export-preview-panel panel">
           <div className="panel-heading-row">
-            <h2 className="panel-heading-title">📄 摘要预览</h2>
+            <h2 className="panel-heading-title">
+              📄 摘要预览
+              <span className="preview-template-tag">
+                {EXPORT_TEMPLATES.find((t) => t.value === selectedTemplate)?.icon}{" "}
+                {EXPORT_TEMPLATES.find((t) => t.value === selectedTemplate)?.label}
+              </span>
+            </h2>
             <div className="preview-actions">
               {copyFeedback && <span className="copy-feedback">{copyFeedback}</span>}
               <button className="primary" onClick={handleCopy}>
