@@ -172,6 +172,37 @@ export default function TemperatureChart({
   const yTicks = isMultiSeries ? multiSeriesData!.yTicks : singleSeriesData!.yTicks;
   const xLabels = isMultiSeries ? multiSeriesData!.xLabels : singleSeriesData!.xLabels;
 
+  const abnormalLines = useMemo(() => {
+    if (!yTicks || yTicks.length === 0) return [];
+    const minY = yTicks[0].y;
+    const maxY = yTicks[yTicks.length - 1].y;
+    const minTick = yTicks[0].value;
+    const maxTick = yTicks[yTicks.length - 1].value;
+    const range = maxTick - minTick;
+    if (range === 0) return [];
+
+    const lines: { temp: number; y: number; type: "high" | "low" }[] = [];
+
+    const lowTemp = -10;
+    const highTemp = 50;
+
+    if (lowTemp >= minTick && lowTemp <= maxTick) {
+      const y = maxY - ((lowTemp - minTick) / range) * (maxY - minY);
+      lines.push({ temp: lowTemp, y, type: "low" });
+    } else if (lowTemp < minTick) {
+      lines.push({ temp: lowTemp, y: maxY + 10, type: "low" });
+    }
+
+    if (highTemp >= minTick && highTemp <= maxTick) {
+      const y = maxY - ((highTemp - minTick) / range) * (maxY - minY);
+      lines.push({ temp: highTemp, y, type: "high" });
+    } else if (highTemp > maxTick) {
+      lines.push({ temp: highTemp, y: minY - 10, type: "high" });
+    }
+
+    return lines;
+  }, [yTicks]);
+
   const formatXLabel = (timestamp: string) => {
     const date = new Date(timestamp);
     const month = date.getMonth() + 1;
@@ -237,6 +268,41 @@ export default function TemperatureChart({
                     className="chart-axis-text"
                   >
                     {tick.value}℃
+                  </text>
+                </g>
+              ))}
+
+              {abnormalLines.map((line, i) => (
+                <g key={`abnormal-${i}`}>
+                  <line
+                    x1={paddingLeft}
+                    y1={line.y}
+                    x2={chartWidth - paddingRight}
+                    y2={line.y}
+                    stroke={line.type === "high" ? "#dc2626" : "#2563eb"}
+                    strokeWidth="1.5"
+                    strokeDasharray="8,4"
+                    className="abnormal-threshold-line"
+                  />
+                  <rect
+                    x={chartWidth - paddingRight - 80}
+                    y={line.y - 11}
+                    width="76"
+                    height="20"
+                    rx="4"
+                    fill={line.type === "high" ? "#dc2626" : "#2563eb"}
+                    className="abnormal-threshold-bg"
+                  />
+                  <text
+                    x={chartWidth - paddingRight - 42}
+                    y={line.y + 4}
+                    textAnchor="middle"
+                    fill="#ffffff"
+                    fontSize="11"
+                    fontWeight="700"
+                    className="abnormal-threshold-label"
+                  >
+                    {line.temp}℃
                   </text>
                 </g>
               ))}

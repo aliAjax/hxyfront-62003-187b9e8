@@ -40,6 +40,7 @@ interface SampleDetailProps {
   allSamples: Sample[];
   onBack: () => void;
   onSave: (updatedSample: Sample) => void;
+  onNavigateToSample?: (sampleId: string) => void;
   registerDirtyChecker?: (checker: () => boolean) => void;
 }
 
@@ -58,7 +59,7 @@ function baseFieldsEqual(a: Sample, b: Sample): boolean {
   return true;
 }
 
-export default function SampleDetail({ sample, allSamples, onBack, onSave, registerDirtyChecker }: SampleDetailProps) {
+export default function SampleDetail({ sample, allSamples, onBack, onSave, onNavigateToSample, registerDirtyChecker }: SampleDetailProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Sample>(sample);
   const [hasChanges, setHasChanges] = useState(false);
@@ -252,14 +253,26 @@ export default function SampleDetail({ sample, allSamples, onBack, onSave, regis
 
   const sortedTempRecords = getSortedTemperatureRecords(formData.temperatureRecords);
 
+  const abnormalRecords = sortedTempRecords.filter((r) => {
+    const temp = parseFloat(r.temperature);
+    return !isNaN(temp) && isAbnormalTemperature(temp);
+  });
+
   const caseSamples = getSamplesByCase(allSamples, formData.relatedCase)
     .map((s) => (s.id === formData.id ? formData : s));
   const caseAllRecords = caseSamples.flatMap((s) =>
-    s.temperatureRecords.map((r) => ({ ...r, sampleNumber: s.sampleNumber }))
+    s.temperatureRecords.map((r) => ({ ...r, sampleNumber: s.sampleNumber, sampleId: s.id }))
   );
   const caseStats = calculateTemperatureStats(
     caseSamples.flatMap((s) => s.temperatureRecords)
   );
+
+  const caseAbnormalRecords = caseAllRecords
+    .filter((r) => {
+      const temp = parseFloat(r.temperature);
+      return !isNaN(temp) && isAbnormalTemperature(temp);
+    })
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   const InfoItem = ({
     label,
@@ -555,6 +568,51 @@ export default function SampleDetail({ sample, allSamples, onBack, onSave, regis
 
           <TemperatureChart records={formData.temperatureRecords} />
 
+          {abnormalRecords.length > 0 && (
+            <div className="abnormal-temp-panel">
+              <div className="abnormal-panel-header">
+                <h4 className="abnormal-panel-title">
+                  <span className="abnormal-panel-icon">⚠️</span>
+                  温度异常记录
+                  <span className="abnormal-count-badge">{abnormalRecords.length}</span>
+                </h4>
+                <span className="abnormal-panel-hint">正常范围：-10℃ ~ 50℃</span>
+              </div>
+              <div className="abnormal-records-list">
+                {abnormalRecords.map((record) => {
+                  const temp = parseFloat(record.temperature);
+                  const isHigh = temp > 50;
+                  return (
+                    <div
+                      key={record.id}
+                      className={`abnormal-record-card ${isHigh ? "high" : "low"}`}
+                    >
+                      <div className="abnormal-record-header">
+                        <span className={`abnormal-type-tag ${isHigh ? "high" : "low"}`}>
+                          {isHigh ? "🔥 超高温" : "❄️ 超低温"}
+                        </span>
+                        <span className="abnormal-record-time">
+                          {formatDateTime(record.timestamp)}
+                        </span>
+                      </div>
+                      <div className="abnormal-record-body">
+                        <div className="abnormal-temp-display">
+                          <span className="abnormal-temp-value">{record.temperature}℃</span>
+                        </div>
+                        {record.note && (
+                          <div className="abnormal-record-note">
+                            <span className="abnormal-note-label">备注：</span>
+                            {record.note}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {sortedTempRecords.length > 0 && (
             <div className="temp-records-list">
               <h4 className="temp-list-title">记录明细</h4>
@@ -602,11 +660,96 @@ export default function SampleDetail({ sample, allSamples, onBack, onSave, regis
               <h3 className="section-title">📁 同案温度汇总 · {formData.relatedCase}</h3>
               <span className="chart-record-count">
                 {caseSamples.length} 个样本 · {caseAllRecords.length} 条记录
+                {caseAbnormalRecords.length > 0 && (
+                  <span className="case-abnormal-summary-tag">
+                    ⚠️ {caseAbnormalRecords.length} 条异常
+                  </span>
+                )}
               </span>
             </div>
 
+            {caseAbnormalRecords.length > 0 && (
+              <div className="case-abnormal-panel">
+                <div className="case-abnormal-header">
+                  <h4 className="case-abnormal-title">
+                    <span className="abnormal-panel-icon">⚠️</span>
+                    同案温度异常记录
+                    <span className="abnormal-count-badge">{caseAbnormalRecords.length}</span>
+                  </h4>
+                  <span className="abnormal-panel-hint">点击异常项可跳转至对应样本详情</span>
+                </div>
+                <div className="case-abnormal-table">
+                  <div className="case-abnormal-table-head">
+                    <div className="abnormal-col-type">异常类型</div>
+                    <div className="abnormal-col-sample">样本编号</div>
+                    <div className="abnormal-col-time">异常时间</div>
+                    <div className="abnormal-col-temp">温度值</div>
+                    <div className="abnormal-col-note">备注</div>
+                    <div className="abnormal-col-action">操作</div>
+                  </div>
+                  <div className="case-abnormal-table-body">
+                    {caseAbnormalRecords.map((record) => {
+                      const temp = parseFloat(record.temperature);
+                      const isHigh = temp > 50;
+                      const isCurrentSample = record.sampleId === formData.id;
+                      return (
+                        <div
+                          key={`case-${record.id}`}
+                          className={`case-abnormal-row ${isHigh ? "high" : "low"} ${isCurrentSample ? "current-sample" : ""}`}
+                          onClick={() => {
+                            if (!isCurrentSample && onNavigateToSample) {
+                              onNavigateToSample(record.sampleId);
+                            }
+                          }}
+                          style={{ cursor: !isCurrentSample && onNavigateToSample ? "pointer" : "default" }}
+                        >
+                          <div className="abnormal-col-type">
+                            <span className={`abnormal-type-tag ${isHigh ? "high" : "low"}`}>
+                              {isHigh ? "🔥 超高温" : "❄️ 超低温"}
+                            </span>
+                          </div>
+                          <div className="abnormal-col-sample">
+                            <span className="abnormal-sample-number">
+                              {record.sampleNumber}
+                              {isCurrentSample && <span className="current-sample-tag">当前</span>}
+                            </span>
+                          </div>
+                          <div className="abnormal-col-time">
+                            {formatDateTime(record.timestamp)}
+                          </div>
+                          <div className="abnormal-col-temp">
+                            <span className="abnormal-temp-value-small">
+                              {record.temperature}℃
+                            </span>
+                          </div>
+                          <div className="abnormal-col-note">
+                            {record.note || <span className="no-note">—</span>}
+                          </div>
+                          <div className="abnormal-col-action">
+                            {!isCurrentSample && onNavigateToSample ? (
+                              <button
+                                className="navigate-to-sample-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onNavigateToSample(record.sampleId);
+                                }}
+                              >
+                                查看详情 →
+                              </button>
+                            ) : (
+                              <span className="current-sample-indicator">✓ 当前样本</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <TemperatureChart
-              records={caseAllRecords.map(({ sampleNumber: _sn, ...r }) => r)}
+              records={caseAllRecords.map(({ sampleNumber: _sn, sampleId: _sid, ...r }) => r)}
               series={caseSamples.map((s) => ({
                 sampleNumber: s.sampleNumber,
                 records: s.temperatureRecords,

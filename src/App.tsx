@@ -24,6 +24,9 @@ import {
   unassociateSampleFromCase,
   getAllCaseNumbers,
   updateBatch,
+  isAbnormalTemperature,
+  formatDateTime,
+  getSortedTemperatureRecords,
 } from "./batchStorage";
 import SampleFormWizard from "./SampleFormWizard";
 import SampleExportSummary from "./SampleExportSummary";
@@ -428,6 +431,7 @@ function App() {
           allSamples={samples}
           onBack={handleBackFromDetail}
           onSave={handleSaveSample}
+          onNavigateToSample={handleViewDetail}
           registerDirtyChecker={registerDirtyChecker}
         />
       </main>
@@ -575,6 +579,102 @@ function App() {
       </section>
 
       {isLoaded && <BatchList batches={batches} onDelete={handleDeleteBatch} onUpdate={handleUpdateBatch} />}
+
+      {(() => {
+        const allAbnormalRecords = samples.flatMap((s) =>
+          getSortedTemperatureRecords(s.temperatureRecords)
+            .filter((r) => {
+              const temp = parseFloat(r.temperature);
+              return !isNaN(temp) && isAbnormalTemperature(temp);
+            })
+            .map((r) => ({
+              ...r,
+              sampleId: s.id,
+              sampleNumber: s.sampleNumber,
+              relatedCase: s.relatedCase,
+            }))
+        ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+        if (allAbnormalRecords.length === 0) return null;
+
+        return (
+          <section className="panel global-abnormal-panel" style={{ marginTop: "18px" }}>
+            <div className="heading">
+              <div>
+                <p style={{ color: "#dc2626" }}>温度预警</p>
+                <h2>温度异常概览</h2>
+              </div>
+              <div className="global-abnormal-stats">
+                <span className="global-abnormal-count">
+                  ⚠️ 共 {allAbnormalRecords.length} 条异常记录
+                </span>
+              </div>
+            </div>
+            <div className="global-abnormal-table">
+              <div className="global-abnormal-head">
+                <div className="g-abnormal-col-type">类型</div>
+                <div className="g-abnormal-col-sample">样本编号</div>
+                <div className="g-abnormal-col-case">关联案件</div>
+                <div className="g-abnormal-col-time">异常时间</div>
+                <div className="g-abnormal-col-temp">温度值</div>
+                <div className="g-abnormal-col-note">备注</div>
+                <div className="g-abnormal-col-action">操作</div>
+              </div>
+              <div className="global-abnormal-body">
+                {allAbnormalRecords.slice(0, 10).map((record) => {
+                  const temp = parseFloat(record.temperature);
+                  const isHigh = temp > 50;
+                  return (
+                    <div
+                      key={`global-${record.id}`}
+                      className={`global-abnormal-row ${isHigh ? "high" : "low"}`}
+                    >
+                      <div className="g-abnormal-col-type">
+                        <span className={`abnormal-type-tag ${isHigh ? "high" : "low"}`}>
+                          {isHigh ? "🔥 高温" : "❄️ 低温"}
+                        </span>
+                      </div>
+                      <div className="g-abnormal-col-sample">
+                        <span className="g-abnormal-sample-number">
+                          {record.sampleNumber}
+                        </span>
+                      </div>
+                      <div className="g-abnormal-col-case">
+                        {record.relatedCase || <span className="no-case">未关联</span>}
+                      </div>
+                      <div className="g-abnormal-col-time">
+                        {formatDateTime(record.timestamp)}
+                      </div>
+                      <div className="g-abnormal-col-temp">
+                        <span className="abnormal-temp-value-small">
+                          {record.temperature}℃
+                        </span>
+                      </div>
+                      <div className="g-abnormal-col-note">
+                        {record.note || <span className="no-note">—</span>}
+                      </div>
+                      <div className="g-abnormal-col-action">
+                        <button
+                          className="primary navigate-to-sample-btn"
+                          onClick={() => handleViewDetail(record.sampleId)}
+                          style={{ minHeight: "32px", padding: "0 12px", fontSize: "12px" }}
+                        >
+                          查看样本 →
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            {allAbnormalRecords.length > 10 && (
+              <div className="global-abnormal-more">
+                ...还有 {allAbnormalRecords.length - 10} 条异常记录，点击各样本详情查看完整列表
+              </div>
+            )}
+          </section>
+        );
+      })()}
 
       <section className="panel" style={{ marginTop: "18px" }}>
         <div className="heading">
